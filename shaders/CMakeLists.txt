@@ -81,6 +81,7 @@ set(byproducts
 	passes/ssao_deinterleave_cs
 	passes/taa_cs
 	passes/tonemapping_ps
+	passes/fxaa_ps
 )
 
 if(DONUT_WITH_AFTERMATH OR DONUT_EMBED_SHADER_PDBS)

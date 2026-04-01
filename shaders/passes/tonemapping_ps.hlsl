@@ -44,6 +44,15 @@ float Luminance(float3 color)
     return 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
 }
 
+float3 LinearToSRGBCorrect(float3 color)
+{
+    color = saturate(color);
+    float3 low  = color * 12.92;
+    float3 high = 1.055 * pow(color, 1.0 / 2.4) - 0.055;
+    return lerp(high, low, float3(color <= 0.0031308));
+}
+
+
 float3 ConvertToLDR(float3 color)
 {
     float srcLuminance = Luminance(color);
@@ -93,7 +102,8 @@ void main(
     float4 HdrColor = t_Source[pos.xy];
 #endif
     o_rgba.rgb = ConvertToLDR(HdrColor.rgb);
-    o_rgba.a = HdrColor.a;
+    float3 srgb = LinearToSRGBCorrect(HdrColor.rgb);
+    o_rgba.a = Luminance(srgb);
 
     if (g_ToneMapping.colorLUTTextureSize.x > 0)
     {
