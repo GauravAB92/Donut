@@ -13,7 +13,7 @@ cbuffer SMAAConstants : register(b0) {
 #define SMAA_RT_METRICS rtMetrics   // Override before include
 
 #define SMAA_PRESET_HIGH
-#define SMAA_REPROJECTION 0
+#define SMAA_REPROJECTION 1
 
 
 #include <donut/shaders/SMAA.hlsli>
@@ -92,24 +92,24 @@ void TemporalResolveVS(
 
 //Wrappers for pixel shaders
 
-float2 EdgeDetectionPS( float4 position : SV_POSITION,
-                      float2 texcoord : TEXCOORD0,
-                      float4 offset[3] : TEXCOORD1 ) : SV_TARGET
+float2 EdgeDetectionPS(float4 position : SV_POSITION,
+    float2 texcoord : TEXCOORD0,
+    float4 offset[3] : TEXCOORD1) : SV_TARGET
 {
     return SMAAColorEdgeDetectionPS(texcoord, offset, colorTexGamma);
 }
 
-float4 WeightsCalcPS( float4 position : SV_Position,
-                     float2 texcoord : TEXCOORD0, 
-                     float2 pixcoord : TEXCOORD1,
-                     float4 offset[3] : TEXCOORD2) : SV_TARGET
+float4 WeightsCalcPS(float4 position : SV_Position,
+    float2 texcoord : TEXCOORD0,
+    float2 pixcoord : TEXCOORD1,
+    float4 offset[3] : TEXCOORD2) : SV_TARGET
 {
     return SMAABlendingWeightCalculationPS(texcoord, pixcoord, offset, edgesTex, areaTex, searchTex, subsampleIndices);
 }
 
-float4 NeighborBlendPS( float4 position : SV_Position,
-                       float2 texcoord : TEXCOORD0,
-                       float4 offset : TEXCOORD1) : SV_TARGET
+float4 NeighborBlendPS(float4 position : SV_Position,
+    float2 texcoord : TEXCOORD0,
+    float4 offset : TEXCOORD1) : SV_TARGET
 {
     #if SMAA_REPROJECTION
     return SMAANeighborhoodBlendingPS(texcoord, offset, colorTex, blendTex, rw_motionVectors);
@@ -123,6 +123,7 @@ float4 TemporalResolvePS(
     float2 texcoord : TEXCOORD0
 ) : SV_Target
 {
+    //return SMAASamplePoint(previousColor, texcoord);
     #if SMAA_REPROJECTION
     return SMAAResolvePS(texcoord, currentColor, previousColor, rw_motionVectors);
     #else

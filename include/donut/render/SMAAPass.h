@@ -30,6 +30,9 @@ namespace donut::render
 
 		nvrhi::TextureHandle							m_AreaTexture;
 		nvrhi::TextureHandle							m_SearchTexture;
+		nvrhi::TextureHandle							m_BlendTex;
+		nvrhi::TextureHandle							m_ResolveTex1;
+		nvrhi::TextureHandle							m_ResolveTex2;
 
 		nvrhi::BufferHandle								m_ConstantBuffer;
 
@@ -69,7 +72,7 @@ namespace donut::render
 
 		nvrhi::DeviceHandle						m_Device;
 
-		bool m_firstFrame = true;
+		bool m_FirstFrame = true;
 
 	public:
 		struct CreateParameters

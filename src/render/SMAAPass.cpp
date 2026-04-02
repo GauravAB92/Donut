@@ -35,8 +35,11 @@ SMAAPass::SMAAPass(
 	, m_EdgesBuffer(params.edgesBuffer)
 	, m_WeightsBuffer(params.weightsBuffer)
 	, m_BlendBuffer(params.blendBuffer)
+	, m_BlendTex(params.blendTex)
 	, m_ResolveBuffer1(params.resolveBuffer1)
 	, m_ResolveBuffer2(params.resolveBuffer2)
+	, m_ResolveTex1(params.resolveTex1)
+	, m_ResolveTex2(params.resolveTex2)
 {
 	const nvrhi::TextureDesc& feedback1Desc = params.resolveTex1->getDesc();
 	const nvrhi::TextureDesc& feedback2Desc = params.resolveTex2->getDesc();
@@ -324,15 +327,18 @@ void donut::render::SMAAPass::Resolve(nvrhi::ICommandList* commandList, const en
 
 		//Resolve Temporally
 		{
+			nvrhi::IBindingSet* currentResolveSet = (m_FrameIndex == 0) ? m_BindingSetResolveA : m_BindingSetResolveB;
+			nvrhi::IFramebuffer* currentTarget = (m_FrameIndex == 0) ? m_ResolveBuffer2->GetFramebuffer(*view) : m_ResolveBuffer1->GetFramebuffer(*view);
+
 			nvrhi::GraphicsState state;
 			state.pipeline = m_ResolvePSO;
-			state.framebuffer = m_FrameIndex == 0 ? m_ResolveBuffer2->GetFramebuffer(*view) : m_ResolveBuffer1->GetFramebuffer(*view);
-			state.bindings = { m_BindingSetShared,  m_FrameIndex == 0 ? m_BindingSetResolveA : m_BindingSetResolveB };
+			state.framebuffer = currentTarget;
+			state.bindings = { m_BindingSetShared, currentResolveSet };
 			state.viewport = viewportState;
+
 			commandList->setGraphicsState(state);
 
 			nvrhi::DrawArguments args;
-			args.instanceCount = 1;
 			args.vertexCount = 3;
 			commandList->draw(args);
 		}

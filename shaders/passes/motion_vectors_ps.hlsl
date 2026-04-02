@@ -48,6 +48,11 @@ void main(
         discard;
 #endif
     float depth = t_GBufferDepth[i_position.xy].x;
+
+    if (depth <= 0.0000001f) 
+    {
+        discard; // Or simply 'return;' to leave o_color at 0
+    }
     
     float4 clipPos;
     clipPos.x = i_uv.x * 2 - 1;
