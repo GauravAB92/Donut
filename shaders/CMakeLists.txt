@@ -82,6 +82,14 @@ set(byproducts
 	passes/taa_cs
 	passes/tonemapping_ps
 	passes/fxaa_ps
+	passes/smaa_edge_detection_vs
+	passes/smaa_edge_detection_ps
+	passes/smaa_weights_vs
+	passes/smaa_weights_ps
+	passes/smaa_neighbor_blend_vs
+	passes/smaa_neighbor_blend_ps
+	passes/smaa_temporal_resolve_vs
+	passes/smaa_temporal_resolve_ps
 )
 
 if(DONUT_WITH_AFTERMATH OR DONUT_EMBED_SHADER_PDBS)
