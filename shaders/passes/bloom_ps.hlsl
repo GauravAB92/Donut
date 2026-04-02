@@ -23,6 +23,7 @@
 #pragma pack_matrix(row_major)
 
 #include <donut/shaders/bloom_cb.h>
+#include <donut/shaders/Empty.hlsli>
 
 cbuffer c_Bloom : register(b0)
 {
@@ -48,6 +49,7 @@ void main(
         float w2 = exp(square(x + 1) * g_Bloom.argumentScale);
 
         float w12 = w1 + w2;
+        w12 = add(w1, w2);
         float p = w2 / w12;
         float2 offset = g_Bloom.pixstep * (x + p);
 
