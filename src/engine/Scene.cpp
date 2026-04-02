@@ -584,7 +584,8 @@ void Scene::FinishedLoading(uint32_t frameIndex)
 {
     nvrhi::CommandListHandle commandList = m_Device->createCommandList();
     commandList->open();
-    
+
+    CreateMeshAdjacencyBuffers(commandList);
     CreateMeshBuffers(commandList);
     Refresh(commandList, frameIndex);
 
@@ -818,6 +819,42 @@ inline void AppendBufferRange(nvrhi::BufferRange& range, size_t size, uint64_t& 
     currentBufferSize += range.byteSize;
 }
 
+void donut::engine::Scene::CreateMeshAdjacencyBuffers(nvrhi::ICommandList* commandList)
+{
+
+    for (const auto& mesh : m_SceneGraph->GetMeshes())
+    {
+        auto buffers = mesh->buffers;
+
+        if (!buffers)
+            continue;
+
+		// Adjacency index buffer is only needed for eraa pass only 
+        if (!buffers->adjIndexData.empty() && !buffers->adjIndexBuffer)
+        {
+            nvrhi::BufferDesc bufferDesc;
+            bufferDesc.isIndexBuffer = true;
+            bufferDesc.byteSize = buffers->adjIndexData.size() * sizeof(uint32_t);
+            bufferDesc.debugName = "AdjIndexBuffer";
+            bufferDesc.canHaveTypedViews = true;
+            bufferDesc.canHaveRawViews = true;             
+            bufferDesc.format = nvrhi::Format::R32_UINT;
+            buffers->adjIndexBuffer = m_Device->createBuffer(bufferDesc);
+
+            commandList->beginTrackingBufferState(buffers->adjIndexBuffer, nvrhi::ResourceStates::Common);
+
+            commandList->writeBuffer(buffers->adjIndexBuffer, buffers->adjIndexData.data(), buffers->adjIndexData.size() * sizeof(uint32_t));
+            std::vector<uint32_t>().swap(buffers->adjIndexData);
+
+            nvrhi::ResourceStates state = nvrhi::ResourceStates::IndexBuffer | nvrhi::ResourceStates::ShaderResource;
+
+            commandList->setPermanentBufferState(buffers->adjIndexBuffer, state);
+            commandList->commitBarriers();
+        }
+    }
+
+}
+
 void Scene::CreateMeshBuffers(nvrhi::ICommandList* commandList)
 {
     for (const auto& mesh : m_SceneGraph->GetMeshes())
@@ -1008,6 +1045,7 @@ void Scene::CreateMeshBuffers(nvrhi::ICommandList* commandList)
 
             uint32_t totalVertices = skinnedMesh->totalVertices;
 
+            skinnedMesh->buffers->adjIndexBuffer = skinnedInstance->GetPrototypeMesh()->buffers->adjIndexBuffer;
             skinnedMesh->buffers->indexBuffer = skinnedInstance->GetPrototypeMesh()->buffers->indexBuffer;
             skinnedMesh->buffers->indexBufferDescriptor = skinnedInstance->GetPrototypeMesh()->buffers->indexBufferDescriptor;
 

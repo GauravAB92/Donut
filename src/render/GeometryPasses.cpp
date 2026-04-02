@@ -30,17 +30,21 @@ using namespace donut::engine;
 using namespace donut::render;
 
 void donut::render::RenderView(
-    nvrhi::ICommandList* commandList, 
-    const IView* view, 
+    nvrhi::ICommandList* commandList,
+    const IView* view,
     const IView* viewPrev,
     nvrhi::IFramebuffer* framebuffer,
     IDrawStrategy& drawStrategy,
     IGeometryPass& pass,
     GeometryPassContext& passContext,
-    bool materialEvents)
+    bool materialEvents,
+    bool singleTriangleMode
+    )
 {
+    
     pass.SetupView(passContext, commandList, view, viewPrev);
 
+	const DrawItem* lastItem = nullptr;
     const Material* lastMaterial = nullptr;
     const BufferGroup* lastBuffers = nullptr;
     nvrhi::RasterCullMode lastCullMode = nvrhi::RasterCullMode::Back;
@@ -58,29 +62,28 @@ void donut::render::RenderView(
     nvrhi::DrawArguments currentDraw;
     currentDraw.instanceCount = 0;
 
-    auto flushDraw = [commandList, materialEvents, &graphicsState, &currentDraw, &eventMaterial, &pass, &passContext](const Material* material)
+    auto flushDraw = [commandList, materialEvents, &graphicsState, &currentDraw, &eventMaterial, &pass, &passContext](const DrawItem* item)
     {
         if (currentDraw.instanceCount == 0)
             return;
 
-        if (materialEvents && material != eventMaterial)
+        if (materialEvents && item->material != eventMaterial)
         {
             if (eventMaterial)
                 commandList->endMarker();
 
-            if (material->name.empty())
+            if (item->material->name.empty())
             {
                 eventMaterial = nullptr;
             }
             else
             {
-                commandList->beginMarker(material->name.c_str());
-                eventMaterial = material;
+                commandList->beginMarker(item->material->name.c_str());
+                eventMaterial = item->material;
             }
         }
 
         pass.SetPushConstants(passContext, commandList, graphicsState, currentDraw);
-
         commandList->drawIndexed(currentDraw);
         currentDraw.instanceCount = 0;
     };
@@ -94,15 +97,14 @@ void donut::render::RenderView(
         bool newBuffers = item->buffers != lastBuffers;
         bool newMaterial = item->material != lastMaterial || item->cullMode != lastCullMode;
 
-        if (newBuffers || newMaterial)
+        if (!singleTriangleMode || newBuffers || newMaterial)
         {
-            flushDraw(lastMaterial);
+            flushDraw(item);
         }
 
         if (newBuffers)
         {
             pass.SetupInputBuffers(passContext, item->buffers, graphicsState);
-
             lastBuffers = item->buffers;
             stateValid = false;
         }
@@ -110,7 +112,7 @@ void donut::render::RenderView(
         if (newMaterial)
         {
             drawMaterial = pass.SetupMaterial(passContext, item->material, item->cullMode, graphicsState);
-
+			lastItem     = item;
             lastMaterial = item->material;
             lastCullMode = item->cullMode;
             stateValid = false;
@@ -124,29 +126,50 @@ void donut::render::RenderView(
                 stateValid = true;
             }
 
-            nvrhi::DrawArguments args;
-            args.vertexCount = item->geometry->numIndices;
-            args.instanceCount = 1;
-            args.startVertexLocation = item->mesh->vertexOffset + item->geometry->vertexOffsetInMesh;
-            args.startIndexLocation = item->mesh->indexOffset + item->geometry->indexOffsetInMesh;
-            args.startInstanceLocation = item->instance->GetInstanceIndex();
 
-            if (currentDraw.instanceCount > 0 && 
-                currentDraw.startIndexLocation == args.startIndexLocation && 
-                currentDraw.startInstanceLocation + currentDraw.instanceCount == args.startInstanceLocation)
+            if (singleTriangleMode)
             {
-                currentDraw.instanceCount += 1;
+                uint32_t baseIndex = item->mesh->indexOffset + item->geometry->indexOffsetInMesh;
+                uint32_t baseVertex = item->mesh->vertexOffset + item->geometry->vertexOffsetInMesh;
+
+                for (uint32_t tri = 0; tri < item->geometry->numIndices; tri += 3)
+                {
+                    nvrhi::DrawArguments args;
+                    args.vertexCount = 3;
+                    args.instanceCount = 1;
+                    args.startIndexLocation = baseIndex + tri;
+                    args.startVertexLocation = baseVertex;
+                    args.startInstanceLocation = item->instance->GetInstanceIndex();
+
+                    pass.SetPushConstants(passContext, commandList, graphicsState, args);
+                    commandList->drawIndexed(args);
+                }
             }
             else
             {
-                flushDraw(item->material);
+                nvrhi::DrawArguments args;
+                args.vertexCount = item->geometry->numIndices;
+                args.instanceCount = 1;
+                args.startVertexLocation = item->mesh->vertexOffset + item->geometry->vertexOffsetInMesh;
+                args.startIndexLocation = item->mesh->indexOffset + item->geometry->indexOffsetInMesh;
+                args.startInstanceLocation = item->instance->GetInstanceIndex();
 
-                currentDraw = args;
+                if (currentDraw.instanceCount > 0 &&
+                    currentDraw.startIndexLocation == args.startIndexLocation &&
+                    currentDraw.startInstanceLocation + currentDraw.instanceCount == args.startInstanceLocation)
+                {
+                    currentDraw.instanceCount += 1;
+                }
+                else
+                {
+                    flushDraw(item);
+                    currentDraw = args;
+                }
             }
         }
     }
 
-    flushDraw(lastMaterial);
+    flushDraw(lastItem);
 
     if (materialEvents && eventMaterial)
         commandList->endMarker();
@@ -162,7 +185,8 @@ void donut::render::RenderCompositeView(
     IGeometryPass& pass,
     GeometryPassContext& passContext,
     const char* passEvent, 
-    bool materialEvents)
+    bool materialEvents,
+    bool singleTriangleMode)
 {
     if (passEvent)
         commandList->beginMarker(passEvent);
@@ -186,7 +210,7 @@ void donut::render::RenderCompositeView(
 
         nvrhi::IFramebuffer* framebuffer = framebufferFactory.GetFramebuffer(*view);
 
-        RenderView(commandList, view, viewPrev, framebuffer, drawStrategy, pass, passContext, materialEvents);
+        RenderView(commandList, view, viewPrev, framebuffer, drawStrategy, pass, passContext, materialEvents, singleTriangleMode);
     }
 
     if (passEvent)

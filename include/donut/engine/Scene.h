@@ -101,8 +101,10 @@ namespace donut::engine
         void WriteMaterialBuffer(nvrhi::ICommandList* commandList) const;
         void WriteGeometryBuffer(nvrhi::ICommandList* commandList) const;
         void WriteInstanceBuffer(nvrhi::ICommandList* commandList) const;
-
+        
+        virtual void CreateMeshAdjacencyBuffers(nvrhi::ICommandList* commandList);
         virtual void CreateMeshBuffers(nvrhi::ICommandList* commandList);
+
         virtual nvrhi::BufferHandle CreateMaterialBuffer();
         virtual nvrhi::BufferHandle CreateGeometryBuffer();
         virtual nvrhi::BufferHandle CreateInstanceBuffer();

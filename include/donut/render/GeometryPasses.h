@@ -74,7 +74,8 @@ namespace donut::render
         IDrawStrategy& drawStrategy,
         IGeometryPass& pass,
         GeometryPassContext& passContext,
-        bool materialEvents = false);
+        bool materialEvents = false,
+		bool singleTriangleMode = false);
 
     void RenderCompositeView(
         nvrhi::ICommandList* commandList,
@@ -86,5 +87,5 @@ namespace donut::render
         IGeometryPass& pass,
         GeometryPassContext& passContext,
         const char* passEvent = nullptr,
-        bool materialEvents = false);
+        bool materialEvents = false, bool singleTriangleMode = false);
 }

@@ -27,6 +27,8 @@
 #include <donut/shaders/light_types.h>
 #include <nvrhi/nvrhi.h>
 #include <memory>
+#include <donut/engine/HalfEdge.h>
+
 
 struct MaterialConstants;
 struct LightConstants;
@@ -44,6 +46,57 @@ namespace donut::vfs
 
 namespace donut::engine
 {
+
+    inline uint32_t GetCanonicalIndex(uint32_t vertIdx,
+        const std::vector<dm::float3>& positions,
+        std::unordered_map<PositionKey, uint32_t, PositionKeyHash>& positionMap)
+    {
+        PositionKey key(positions[vertIdx]);
+        auto it = positionMap.find(key);
+        if (it == positionMap.end())
+        {
+            positionMap[key] = vertIdx;
+            return vertIdx;
+        }
+        return it->second;
+    }
+
+
+    struct EdgeKey
+    {
+        uint32_t v0, v1;
+
+        EdgeKey(uint32_t from, uint32_t to,
+            const std::vector<dm::float3>& positions,
+            const std::unordered_map<PositionKey, uint32_t, PositionKeyHash>& posMap)
+        {
+            uint32_t p0 = posMap.at(PositionKey(positions[from]));
+            uint32_t p1 = posMap.at(PositionKey(positions[to]));
+            v0 = std::min(p0, p1);
+            v1 = std::max(p0, p1);
+        }
+
+        bool operator==(const EdgeKey& other) const
+        {
+            return v0 == other.v0 && v1 == other.v1;
+        }
+    };
+
+    struct EdgeKeyHash
+    {
+        size_t operator()(const EdgeKey& key) const
+        {
+            return std::hash<uint32_t>()(key.v0) ^ (std::hash<uint32_t>()(key.v1) << 1);
+        }
+    };
+
+    // Helper structure to track half-edges for an edge
+    struct EdgeInfo
+    {
+        uint32_t halfEdgeIdx;     // Index of one half-edge
+        uint32_t fromVert;        // Which vertex it goes FROM
+    };
+
     enum class TextureAlphaMode
     {
         UNKNOWN = 0,
@@ -270,6 +323,7 @@ namespace donut::engine
     struct BufferGroup
     {
         nvrhi::BufferHandle indexBuffer;
+        nvrhi::BufferHandle adjIndexBuffer;
         nvrhi::BufferHandle vertexBuffer;
         nvrhi::BufferHandle instanceBuffer;
         std::shared_ptr<DescriptorHandle> indexBufferDescriptor;
@@ -277,6 +331,7 @@ namespace donut::engine
         std::shared_ptr<DescriptorHandle> instnaceBufferDescriptor;
         std::array<nvrhi::BufferRange, size_t(VertexAttribute::Count)> vertexBufferRanges;
         std::vector<nvrhi::BufferRange> morphTargetBufferRange;
+		std::vector<uint32_t> adjIndexData;
         std::vector<uint32_t> indexData;
         std::vector<dm::float3> positionData;
         std::vector<dm::float2> texcoord1Data;
@@ -287,6 +342,8 @@ namespace donut::engine
         std::vector<dm::float4> weightData;
         std::vector<float> radiusData;
         std::vector<dm::float4> morphTargetData;
+        std::vector<HalfEdge> halfEdgesData;
+		std::vector<Face> facesData;
 
         [[nodiscard]] bool hasAttribute(VertexAttribute attr) const { return vertexBufferRanges[int(attr)].byteSize != 0; }
         nvrhi::BufferRange& getVertexBufferRange(VertexAttribute attr) { return vertexBufferRanges[int(attr)]; }
@@ -298,7 +355,6 @@ namespace donut::engine
         Triangles,
         Lines,
         LineStrip,
-
         Count
     };
 
