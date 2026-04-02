@@ -819,6 +819,7 @@ namespace donut::engine
             return false;
 
         uint8_t* newData = nullptr;
+        saveAlphaChannel = false;
         int channels = saveAlphaChannel ? 4 : 3;
 
         // If the mapped data is not laid out in a densely packed format with the right number of channels,
@@ -834,8 +835,15 @@ namespace donut::engine
 
                 if (channels == 4)
                 {
-                    // Simple row copy
-                    memcpy(dstRow, srcRow, desc.width * channels);
+                    for (uint32_t col = 0; col < desc.width; ++col)
+                    {
+                        dstRow[0] = srcRow[0];
+                        dstRow[1] = srcRow[1];
+                        dstRow[2] = srcRow[2];
+                        dstRow[3] = 255; // force alpha to opaque
+                        dstRow += 4;
+                        srcRow += 4;
+                    }
                 }
                 else
                 {
