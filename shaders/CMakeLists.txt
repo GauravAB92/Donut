@@ -90,6 +90,9 @@ set(byproducts
 	passes/smaa_neighbor_blend_ps
 	passes/smaa_temporal_resolve_vs
 	passes/smaa_temporal_resolve_ps
+	passes/eraa_pass_ps
+	passes/eraa_pass_vs
+	passes/eraa_pass_gs
 )
 
 if(DONUT_WITH_AFTERMATH OR DONUT_EMBED_SHADER_PDBS)

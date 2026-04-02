@@ -88,4 +88,18 @@ namespace donut::render
         GeometryPassContext& passContext,
         const char* passEvent = nullptr,
         bool materialEvents = false, bool singleTriangleMode = false);
+
+
+    void RenderViewPerTriangle(
+        nvrhi::ICommandList* commandList,
+        const engine::IView* view,
+        engine::FramebufferFactory& framebufferFactory,
+        const std::shared_ptr<engine::SceneGraphNode>& rootNode,
+        IDrawStrategy& drawStrategy,
+        IGeometryPass& pass,
+        GeometryPassContext& passContext,
+        nvrhi::ITexture* depthRead,
+        nvrhi::ITexture* depthWrite,
+        nvrhi::ITexture* extentRead,
+        nvrhi::ITexture* extentWrite);
 }

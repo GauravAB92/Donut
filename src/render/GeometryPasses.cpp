@@ -1,4 +1,4 @@
-/*
+﻿/*
 * Copyright (c) 2014-2021, NVIDIA CORPORATION. All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
@@ -215,4 +215,73 @@ void donut::render::RenderCompositeView(
 
     if (passEvent)
         commandList->endMarker();
+}
+
+void donut::render::RenderViewPerTriangle(
+    nvrhi::ICommandList* commandList,
+    const IView* view,
+    FramebufferFactory& framebufferFactory,
+    const std::shared_ptr<SceneGraphNode>& rootNode,
+    IDrawStrategy& drawStrategy,
+    IGeometryPass& pass,
+    GeometryPassContext& passContext,
+    nvrhi::ITexture* depthRead,
+    nvrhi::ITexture* depthWrite,
+    nvrhi::ITexture* extentRead,
+    nvrhi::ITexture* extentWrite)
+{
+
+    drawStrategy.PrepareForView(rootNode, *view);
+    pass.SetupView(passContext, commandList, view, nullptr);
+    nvrhi::IFramebuffer* framebuffer = framebufferFactory.GetFramebuffer(*view);
+
+
+    const Material* lastMaterial = nullptr;
+    const BufferGroup* lastBuffers = nullptr;
+    nvrhi::RasterCullMode lastCullMode = nvrhi::RasterCullMode::Back;
+
+    nvrhi::GraphicsState state;
+    state.framebuffer = framebuffer;
+    state.viewport = view->GetViewportState();
+
+    while (const DrawItem* item = drawStrategy.GetNextItem())
+    {
+        if (!item->material) continue;
+
+        if (item->buffers != lastBuffers)
+        {
+            pass.SetupInputBuffers(passContext, item->buffers, state);
+            lastBuffers = item->buffers;
+        }
+
+        if (item->material != lastMaterial || item->cullMode != lastCullMode)
+        {
+            if (!pass.SetupMaterial(passContext, item->material, item->cullMode, state))
+                continue;
+            lastMaterial = item->material;
+            lastCullMode = item->cullMode;
+        }
+
+        uint32_t baseIndex = item->mesh->indexOffset + item->geometry->indexOffsetInMesh;
+        uint32_t baseVertex = item->mesh->vertexOffset + item->geometry->vertexOffsetInMesh;
+
+        for (uint32_t tri = 0; tri < item->geometry->numIndices; tri += 3)
+        {
+            commandList->setGraphicsState(state);
+
+            nvrhi::DrawArguments args;
+            args.vertexCount = 3;
+            args.instanceCount = 1;
+            args.startIndexLocation = baseIndex + tri;
+            args.startVertexLocation = baseVertex;
+            args.startInstanceLocation = item->instance->GetInstanceIndex();
+
+            pass.SetPushConstants(passContext, commandList, state, args);
+            commandList->drawIndexed(args);
+
+            // Copy write → read for next triangle
+            commandList->copyTexture(depthRead, nvrhi::TextureSlice(), depthWrite, nvrhi::TextureSlice());
+            commandList->copyTexture(extentRead, nvrhi::TextureSlice(), extentWrite, nvrhi::TextureSlice());
+        }
+    }
 }
