@@ -39,6 +39,7 @@ void main_ps(
     in float4 i_position : SV_Position,
     in SceneVertex i_vtx,
     in bool i_isFrontFace : SV_IsFrontFace,
+    in float3 barycentrics : SV_Barycentrics,
     VK_LOCATION_INDEX(0, 0) out float4 o_color : SV_Target0
 )
 {
