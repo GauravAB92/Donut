@@ -51,7 +51,7 @@ include(FetchContent)
 
 option(DONUT_WITH_NVRHI "Enable NVRHI and related projects" ON)
 
-cmake_dependent_option(DONUT_WITH_DX11 "Enable the DX11 version of Donut" ON "WIN32" OFF)
+option(DONUT_WITH_DX11 "Enable the DX11 version of Donut" OFF)
 cmake_dependent_option(DONUT_WITH_DX12 "Enable the DX12 version of Donut" ON "WIN32" OFF)
 option(DONUT_WITH_VULKAN "Enable the Vulkan version of Donut" ON)
 option(DONUT_WITH_AFTERMATH "Enable Aftermath crash dump generation with Donut" OFF)
