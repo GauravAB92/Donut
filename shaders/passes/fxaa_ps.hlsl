@@ -1,7 +1,7 @@
 #define FXAA_PC 1
 #define FXAA_HLSL_5 1
-#define FXAA_QUALITY__PRESET 12
-#define FXAA_GREEN_AS_LUMA 0
+#define FXAA_QUALITY_PRESET 12
+#define FXAA_GREEN_AS_LUMA 1
 
 #include <donut/shaders/FXAA3_11.hlsli>
 
@@ -24,7 +24,7 @@ cbuffer FXAAConstantsBuffer : register(b0)
 
 float4 FXAA_PS(
     float4 svPosition : SV_Position,
-    float2 uv         : UV) : SV_Target
+    noperspective float2 uv         : UV) : SV_Target
 {
     FxaaTex fxaaTex;
     fxaaTex.smpl = linearSampler;
@@ -40,7 +40,7 @@ float4 FXAA_PS(
         float4(0,0,0,0),            // fxaaConsoleRcpFrameOpt  — unused (PC)
         float4(0,0,0,0),            // fxaaConsoleRcpFrameOpt2 — unused (PC)
         float4(0,0,0,0),            // fxaaConsole360RcpFrameOpt2 — unused (PC)
-        0.75f,                      // fxaaQualitySubpix       — 0.75 default
+        1.0f,                      // fxaaQualitySubpix       — 0.75 default
         0.125f,                     // fxaaQualityEdgeThreshold — 0.166 default
         0.0625f,                    // fxaaQualityEdgeThresholdMin — 0.0833 default
         0.0f,                       // fxaaConsoleEdgeSharpness — unused (PC)

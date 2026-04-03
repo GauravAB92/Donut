@@ -28,7 +28,7 @@ DECLARE_PUSH_CONSTANTS(BlitConstants, g_Blit, 0, 0);
 void main(
 	in uint iVertex : SV_VertexID,
 	out float4 o_posClip : SV_Position,
-	out float2 o_uv : UV)
+	noperspective out float2 o_uv : UV)
 {
 	uint u = iVertex & 1;
 	uint v = (iVertex >> 1) & 1;

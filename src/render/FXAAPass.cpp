@@ -53,13 +53,18 @@ FXAAPass::FXAAPass(nvrhi::IDevice* device,
 
 	//Create bilinear sampler
 	nvrhi::SamplerDesc samplerDesc;
-	samplerDesc.addressU = samplerDesc.addressV = samplerDesc.addressW = nvrhi::SamplerAddressMode::Border;
+	samplerDesc.addressU = samplerDesc.addressV = samplerDesc.addressW = nvrhi::SamplerAddressMode::Clamp;
 	samplerDesc.borderColor = nvrhi::Color(0.0f);
+
+	samplerDesc.minFilter = true; // Enables Linear Minification
+	samplerDesc.magFilter = true; // Enables Linear Magnification
+	samplerDesc.mipFilter = true; // Enables Linear Mip-Sensing
+
 	m_BilinearSampler = m_Device->createSampler(samplerDesc);
 
 	//PSO
 	nvrhi::GraphicsPipelineDesc pipelineDesc;
-	pipelineDesc.VS = commonPasses->m_FullscreenVS;
+	pipelineDesc.VS = commonPasses->m_RectVS;
 	pipelineDesc.PS = m_PixelShader;
 	pipelineDesc.bindingLayouts = { m_bindingLayout };
 	pipelineDesc.primType = nvrhi::PrimitiveType::TriangleStrip;
@@ -110,7 +115,7 @@ void FXAAPass::Resolve(nvrhi::ICommandList* commandList, const engine::IComposit
 
 		BlitConstants blitConstants;
 
-		blitConstants.sourceOrigin = float2(0, 0);
+		blitConstants.sourceOrigin = float2(0.5 * (1.0f / m_ResolvedColorSize.x), 0.25 * (1.0f / m_ResolvedColorSize.y));
 		blitConstants.sourceSize = m_ResolvedColorSize;
 		blitConstants.targetOrigin = float2(0, 0);
 		blitConstants.targetSize = m_ResolvedColorSize;
@@ -138,3 +143,5 @@ void FXAAPass::Resolve(nvrhi::ICommandList* commandList, const engine::IComposit
 	}
 	commandList->endMarker();
 }
+
+
