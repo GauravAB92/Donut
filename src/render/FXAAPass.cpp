@@ -24,7 +24,8 @@ FXAAPass::FXAAPass(nvrhi::IDevice* device,
 	std::shared_ptr<ShaderFactory> shaderFactory, 
 	std::shared_ptr<CommonRenderPasses> commonPasses, 
 	std::shared_ptr<FramebufferFactory> framebufferFactory,  
-	const ICompositeView& compositeView)
+	const ICompositeView& compositeView,
+	bool debugEdges)
 	: m_Device(device),
 	m_FramebufferFactory(framebufferFactory),
 	m_CommonPasses(commonPasses)
@@ -49,7 +50,10 @@ FXAAPass::FXAAPass(nvrhi::IDevice* device,
 	m_bindingLayout = m_Device->createBindingLayout(layoutDesc);
 
 	//Build shaders
-	m_PixelShader = shaderFactory->CreateAutoShader("donut/passes/fxaa_ps.hlsl", "FXAA_PS", DONUT_MAKE_PLATFORM_SHADER(g_fxaa_ps), nullptr, nvrhi::ShaderType::Pixel);
+	std::vector<ShaderMacro> Macros;
+
+	Macros.push_back(ShaderMacro("FXAA_DEBUG_EDGES", debugEdges ? "1" : "0"));
+	m_PixelShader = shaderFactory->CreateAutoShader("donut/passes/fxaa_ps.hlsl", "FXAA_PS", DONUT_MAKE_PLATFORM_SHADER(g_fxaa_ps), &Macros, nvrhi::ShaderType::Pixel);
 
 	//Create bilinear sampler
 	nvrhi::SamplerDesc samplerDesc;

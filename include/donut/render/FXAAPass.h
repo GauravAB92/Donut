@@ -50,7 +50,8 @@ namespace donut::render
 			std::shared_ptr<engine::ShaderFactory> shaderFactory,
 			std::shared_ptr<engine::CommonRenderPasses> commonPasses,
 			std::shared_ptr<engine::FramebufferFactory> framebufferFactory,
-			const engine::ICompositeView& compositeView);
+			const engine::ICompositeView& compositeView,
+			bool debugEdges);
 
 		void Resolve(nvrhi::ICommandList* commandList,
 			const engine::ICompositeView& compositeView,

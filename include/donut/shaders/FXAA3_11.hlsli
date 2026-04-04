@@ -2,6 +2,9 @@
 #ifndef FXAA_PS3
     #define FXAA_PS3 0
 #endif
+#ifndef FXAA_DEBUG_EDGES
+    #define FXAA_DEBUG_EDGES 0
+#endif
 /*--------------------------------------------------------------------------*/
 #ifndef FXAA_360
     #define FXAA_360 0
@@ -748,7 +751,9 @@ FxaaFloat4 FxaaPixelShader(
     FxaaBool earlyExit = range < rangeMaxClamped;
 /*--------------------------------------------------------------------------*/
     if(earlyExit)
-        #if (FXAA_DISCARD == 1)
+         #if (FXAA_DEBUG_EDGES == 1)
+            return FxaaFloat4(0.0, 0.0, 0.0, lumaM); // non-edge = black
+        #elif (FXAA_DISCARD == 1)
             FxaaDiscard;
         #else
             return rgbyM;
@@ -1046,6 +1051,15 @@ FxaaFloat4 FxaaPixelShader(
     FxaaFloat pixelOffsetSubpix = max(pixelOffsetGood, subpixH);
     if(!horzSpan) posM.x += pixelOffsetSubpix * lengthSign;
     if( horzSpan) posM.y += pixelOffsetSubpix * lengthSign;
+
+    #if (FXAA_DEBUG_EDGES == 1)
+    return FxaaFloat4(
+        !horzSpan ? 1.0 : 0.0,   // R: vertical
+        horzSpan  ? 1.0 : 0.0,   // G: horizontal
+        0.0,
+        lumaM
+    );
+#endif
     
     #if (FXAA_DISCARD == 1)
         return FxaaTexTop(tex, posM);

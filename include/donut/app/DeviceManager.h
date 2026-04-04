@@ -74,11 +74,11 @@ freely, subject to the following restrictions:
 #endif
 
 #define GLFW_INCLUDE_NONE // Do not include any OpenGL headers
-#include <GLFW/glfw3.h>
+#include <../thirdparty/glfw/include/GLFW/glfw3.h>
 #ifdef _WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
 #endif // _WIN32
-#include <GLFW/glfw3native.h>
+#include <../thirdparty/glfw/include/GLFW/glfw3native.h>
 #include <nvrhi/nvrhi.h>
 #include <donut/core/log.h>
 
