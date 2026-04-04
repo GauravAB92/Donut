@@ -113,10 +113,10 @@ void main_gs0_adj(
         vNormals[i]              = Input[idx].vtx.normalView;
         posScreen[i]             = getScreenSpacePos(Input[idx].posClip, g_ForwardView.view.viewportSize).xy;
         posViewSpace[i]          = Input[idx].vtx.posView.xyz;
-        //isDiscontinuityEdge[i]   = all(Input[adIdx].vtx.posWorld.xyz == Input[nextIndx].vtx.posWorld.xyz) ? 1.0f : 0.0f; //  with floats can miss matches due to precision
+        isDiscontinuityEdge[i]   = all(Input[adIdx].vtx.posWorld.xyz == Input[nextIndx].vtx.posWorld.xyz) ? 1.0f : 0.0f; //  with floats can miss matches due to precision
 
         //TODO: try this:
-        isDiscontinuityEdge[i] = all(abs(Input[adIdx].vtx.posWorld.xyz - Input[nextIndx].vtx.posWorld.xyz) < 0.0001) ? 1.0f : 0.0f;
+        //isDiscontinuityEdge[i] = all(abs(Input[adIdx].vtx.posWorld.xyz - Input[nextIndx].vtx.posWorld.xyz) < 0.0001) ? 1.0f : 0.0f;
     }
   
     [unroll] for(int j = 0; j < 3; j++)

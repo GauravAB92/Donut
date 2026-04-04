@@ -431,7 +431,6 @@ void ERAAPass::Resolve(nvrhi::ICommandList* commandList, const ResolveParams& pa
         m_ResolvePipeline = m_Device->createGraphicsPipeline(psoDesc, params.targetFramebuffer);
     }
 
-
     nvrhi::BindingSetDesc bindingSetDesc;
     {
         auto sourceDimension = sourceDesc.dimension;
@@ -444,6 +443,7 @@ void ERAAPass::Resolve(nvrhi::ICommandList* commandList, const ResolveParams& pa
             nvrhi::BindingSetItem::Texture_UAV(1, params.eraaOffsetsTexture, params.eraaOffsetsTextureFormat, sourceSubresources,  nvrhi::TextureDimension::Texture2D),
         };
     }
+
     // If a binding cache is provided, get the binding set from the cache.
     // Otherwise, create one and then release it.
     nvrhi::BindingSetHandle sourceBindingSet;

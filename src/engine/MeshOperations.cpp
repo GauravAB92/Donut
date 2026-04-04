@@ -98,7 +98,6 @@ uint32_t donut::engine::getAdjVertexIndex(std::shared_ptr<BufferGroup>& buffers,
 
 bool donut::engine::GenerateAdjacencyIndices(std::shared_ptr<BufferGroup>& buffers)
 {
-	
 	buffers->adjIndexData.clear();
 
 	for (auto& face : buffers->facesData)

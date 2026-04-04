@@ -61,6 +61,7 @@ using namespace donut::math;
 #include <donut/shaders/material_cb.h>
 #include <donut/shaders/skinning_cb.h>
 #include <donut/shaders/bindless.h>
+#include <unordered_set>
 
 using namespace donut::vfs;
 using namespace donut::engine;
@@ -822,6 +823,7 @@ inline void AppendBufferRange(nvrhi::BufferRange& range, size_t size, uint64_t& 
 
 void donut::engine::Scene::CreateMeshAdjacencyBuffers(nvrhi::ICommandList* commandList)
 {
+    std::unordered_set<BufferGroup*> processed;
 
     for (const auto& mesh : m_SceneGraph->GetMeshes())
     {
@@ -830,11 +832,13 @@ void donut::engine::Scene::CreateMeshAdjacencyBuffers(nvrhi::ICommandList* comma
         if (!buffers)
             continue;
 
+        if (processed.count(buffers.get()))
+            continue;
+
+        processed.insert(buffers.get());
+
         GenerateHalfEdgeData(buffers);
         GenerateAdjacencyIndices(buffers);
-
-     /*   log::info("Mesh '%s': %d triangles, %d adjacency indices.",
-			mesh->name, buffers->indexData.size() / 3, buffers->adjIndexData.size());*/
 
 		// Adjacency index buffer is only needed for eraa pass only 
         if (!buffers->adjIndexData.empty() && !buffers->adjIndexBuffer)
@@ -851,10 +855,12 @@ void donut::engine::Scene::CreateMeshAdjacencyBuffers(nvrhi::ICommandList* comma
             commandList->beginTrackingBufferState(buffers->adjIndexBuffer, nvrhi::ResourceStates::Common);
 
             commandList->writeBuffer(buffers->adjIndexBuffer, buffers->adjIndexData.data(), buffers->adjIndexData.size() * sizeof(uint32_t));
+           
             std::vector<uint32_t>().swap(buffers->adjIndexData);
+            std::vector<HalfEdge>().swap(buffers->halfEdgesData);
+			std::vector<Face>().swap(buffers->facesData);
 
             nvrhi::ResourceStates state = nvrhi::ResourceStates::IndexBuffer | nvrhi::ResourceStates::ShaderResource;
-
             commandList->setPermanentBufferState(buffers->adjIndexBuffer, state);
             commandList->commitBarriers();
         }
