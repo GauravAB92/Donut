@@ -114,6 +114,7 @@ namespace donut::render
             // Switches between loading vertex data through the Input Assembler (true) or buffer SRVs (false).
             // Using Buffer SRVs is often faster.
             bool useInputAssembler = false;
+            bool showEdgeData      = false;
 
             uint32_t numConstantBufferVersions = 16;
         };

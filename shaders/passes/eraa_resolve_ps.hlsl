@@ -8,17 +8,19 @@ void main_ps(
 	out float4 o_rgba : SV_Target)
 {
 
+    int2 inputPixelPosition = int2(pos.xy);
+    float4 data             = u_eraaOffsets[inputPixelPosition];
 
+#if (ERAA_SHOW_DETECTED_EDGES == 1)
+    o_rgba = data;
+#else
     // Get dimensions of the textures
     uint width, height;
     t_Src.GetDimensions(width, height);
     int2 textureSize = int2(width, height);
 
-    int2 inputPixelPosition = int2(pos.xy);
-    
     float3 centerValue   = t_Src[inputPixelPosition].rgb;
-    float4 data          = u_eraaOffsets[inputPixelPosition];
-
+    
     float L = data.x;
     float R = data.y;
     float U = data.z;
@@ -50,7 +52,7 @@ void main_ps(
     float wCL           = L     *   w1UD;
     float wC            = w1UD  *   w1LR;
     float wCR           = R     *   w1UD;
-
+ 
     float wDL           = D     *   L;
     float wD            = D     *   w1LR;
     float wDR           = D     *   R;
@@ -67,4 +69,6 @@ void main_ps(
                                  wC   * centerValue; 
 
     o_rgba = float4(blendedValue, 1.0);
+#endif
+
 }

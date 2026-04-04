@@ -23,6 +23,7 @@
 #define USE_GS_ADJACENCY_DATA 1
 #define DEBUG_OFFSETS 0
 
+
 #pragma pack_matrix(row_major)
 
 #include <donut/shaders/forward_cb.h>

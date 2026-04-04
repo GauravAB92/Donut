@@ -81,7 +81,11 @@ void ERAAPass::Init(ShaderFactory& shaderFactory, const CreateParameters& params
     m_SupportedViewTypes = ViewType::PLANAR;
  
     m_RectVS        = shaderFactory.CreateAutoShader("donut/rect_vs.hlsl", "main", DONUT_MAKE_PLATFORM_SHADER(g_rect_vs), nullptr, nvrhi::ShaderType::Vertex);
-    m_EraaResolvePS = shaderFactory.CreateAutoShader("donut/passes/eraa_resolve_ps.hlsl", "main_ps", DONUT_MAKE_PLATFORM_SHADER(g_eraa_resolve_ps), nullptr, nvrhi::ShaderType::Pixel);
+
+    std::vector<ShaderMacro> Macros;
+    Macros.push_back(ShaderMacro("ERAA_SHOW_DETECTED_EDGES", params.showEdgeData ? "1" : "0"));
+
+    m_EraaResolvePS = shaderFactory.CreateAutoShader("donut/passes/eraa_resolve_ps.hlsl", "main_ps", DONUT_MAKE_PLATFORM_SHADER(g_eraa_resolve_ps), &Macros, nvrhi::ShaderType::Pixel);
 
     m_VertexShader = CreateVertexShader(shaderFactory, params);
     m_InputLayout = CreateInputLayout(m_VertexShader, params);
