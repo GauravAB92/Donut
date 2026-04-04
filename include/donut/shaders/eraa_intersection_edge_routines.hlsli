@@ -1,5 +1,5 @@
 
-#include "eraa_shared_data.hlsli"
+#include <donut/shaders/eraa_shared_data.hlsli>
 
 #define ALGORITHM_VERSION 1
 
@@ -22,7 +22,7 @@ void buildDepthDeltas(
     out float extentFramebuffer[9])
 {
     uint width, height;
-    t_eraaDepthRead.GetDimensions(width, height);
+    u_eraaDepthRead.GetDimensions(width, height);
     int2 pixelPosInt = int2(pixelPosScreen.xy);
     
     float3 ddx_pos = ddx_fine(pixelPosScreen);
@@ -36,8 +36,8 @@ void buildDepthDeltas(
         
         if(i == 4)
         {
-            currDepths[i] = pixelPosScreen.z;
-            currExtents[i] = u_eraaExtentRead.Load(int3(samplePos.x, samplePos.y, 0));
+            currDepths[i]   = pixelPosScreen.z;
+            currExtents[i]  = u_eraaExtentRead[samplePos];
         }
         else
         {
@@ -51,9 +51,9 @@ void buildDepthDeltas(
                             abs(ddy_pos.z) * abs(float(pixelIdOffsets[i].y));
         }
         
-        prevDepths[i]           = t_eraaDepthRead.Load(int3(samplePos.x,samplePos.y, 0));
-        extentFramebuffer[i]    = u_eraaExtentRead.Load(int3(samplePos.x,samplePos.y, 0));
-        depthDiffs[i]           = prevDepths[i] - currDepths[i];
+        prevDepths[i]           = u_eraaDepthRead[samplePos];
+        extentFramebuffer[i]    = u_eraaExtentRead[samplePos];
+        depthDiffs[i]           = currDepths[i] - prevDepths[i];
     }
 }
 

@@ -4,11 +4,27 @@ bool detectSilhouetteEdgeNDC_GSADJ(float3 surfaceNormalNDC, float3 adjacentFaceN
     return surfaceNormalNDC.z * adjacentFaceNormalNDC.z <= 0.0f;
 }
 
-bool detectSilhouetteEdgeVS_GSADJ(float3 surfaceNormalVS, float3 adjacentFaceNormalVS, float3 viewVector)
+bool detectSilhouetteEdgeVS_GSADJ(float3 surfaceNormalVS, float3 adjacentFaceNormalVS, float3 viewVector, out float weight)
 {
     float d0 = dot(surfaceNormalVS, viewVector);
     float d1 = dot(adjacentFaceNormalVS, viewVector);
-    return (d0 * d1 <= 0.0f);
+    
+    bool silhouette = (d0 * d1 <= 0.0f);
+    bool grazing = (min(abs(d0), abs(d1)) < 0.05f);
+    
+    float edgeness = 1.0 - abs(d0);
+    
+    // How much do the two faces diverge relative to the view
+    float normalDiff = 1.0 - dot(surfaceNormalVS, adjacentFaceNormalVS);
+    
+    // Combine: strong edge where face is nearly edge-on AND normals differ
+    weight = edgeness * saturate(normalDiff * 10.0);
+    
+    // Also catch hard sign flips
+    if (d0 * d1 < 0.0)
+        weight = max(weight, saturate(abs(d0 - d1)));
+
+    return silhouette || grazing;
 }  
  
 bool detectSilhouetteEdgeNDC(int vtxID,float3 perVertexNormalsNDC[3], float3 surfaceNormalNDC, out float3 computedNormal, out bool backFace) 

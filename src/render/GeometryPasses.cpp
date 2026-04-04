@@ -41,7 +41,6 @@ void donut::render::RenderView(
     bool singleTriangleMode
     )
 {
-    
     pass.SetupView(passContext, commandList, view, viewPrev);
 
 	const DrawItem* lastItem = nullptr;
@@ -126,16 +125,16 @@ void donut::render::RenderView(
                 stateValid = true;
             }
 
-
             if (singleTriangleMode)
             {
-                uint32_t baseIndex = item->mesh->indexOffset + item->geometry->indexOffsetInMesh;
+                
+                uint32_t baseIndex = (item->mesh->indexOffset + item->geometry->indexOffsetInMesh) * 2;
                 uint32_t baseVertex = item->mesh->vertexOffset + item->geometry->vertexOffsetInMesh;
 
-                for (uint32_t tri = 0; tri < item->geometry->numIndices; tri += 3)
+                for (uint32_t tri = 0; tri < item->geometry->numIndices * 2; tri += 6)
                 {
                     nvrhi::DrawArguments args;
-                    args.vertexCount = 3;
+                    args.vertexCount = 6;
                     args.instanceCount = 1;
                     args.startIndexLocation = baseIndex + tri;
                     args.startVertexLocation = baseVertex;
@@ -262,15 +261,15 @@ void donut::render::RenderViewPerTriangle(
             lastCullMode = item->cullMode;
         }
 
-        uint32_t baseIndex = item->mesh->indexOffset + item->geometry->indexOffsetInMesh;
+        uint32_t baseIndex  = (item->mesh->indexOffset + item->geometry->indexOffsetInMesh) * 2;
         uint32_t baseVertex = item->mesh->vertexOffset + item->geometry->vertexOffsetInMesh;
 
-        for (uint32_t tri = 0; tri < item->geometry->numIndices; tri += 3)
+        for (uint32_t tri = 0; tri < item->geometry->numIndices * 2; tri += 6)
         {
             commandList->setGraphicsState(state);
 
             nvrhi::DrawArguments args;
-            args.vertexCount = 3;
+            args.vertexCount = 6;
             args.instanceCount = 1;
             args.startIndexLocation = baseIndex + tri;
             args.startVertexLocation = baseVertex;

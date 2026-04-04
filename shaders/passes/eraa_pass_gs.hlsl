@@ -4,42 +4,23 @@
 
 #include <donut/shaders/forward_cb.h>
 #include <donut/shaders/forward_vertex.hlsli>
+#include <donut/shaders/binding_helpers.hlsli>
 
-/*
-cbuffer CB : register(b0)
-{   
-    float4x4 g_Transform;
-	float4x4 g_ForwardView;  // Forward view matrix, used for screen space calculations
-    float4x4 g_Projection;   // Projection matrix
-    float4x4 g_InverseProjection; // Inverse projection matrix
-    float2   g_ViewportSize; // Viewport size for screen space calculations
-    float 	 pad[62];
-};
+
+DECLARE_CBUFFER(ForwardShadingViewConstants, g_ForwardView, FORWARD_BINDING_VIEW_CONSTANTS, FORWARD_SPACE_VIEW);
+
 
 struct VSOutput
 {
-	float4 posClip   : SV_Position; 	  // Clip space position
-    float4 posView   : POSITION;          // View space position
-	float4 posWorld  : POSITION5;       // World space position
-    float3 normal    : NORMAL;            // Vertex normal
-    float3 normalVS  : NORMAL4; 		  // Vertex normal in view space
+    float4 posClip : SV_Position;
+	SceneVertexData vtx;
 };
 
+
 struct GSOutput
-{
-	float4 posClip                                  : SV_Position; 	    // Clip space position
-    float4 posView                                  : POSITION;         //  View space position
-    float3 normal                                   : NORMAL;           //  Vertex normal
-    uint primitiveID                                : SV_PrimitiveID;
-    nointerpolation float3 normalVS[3]              : NORMAL4;
-    nointerpolation float3 normalNDC[3]             : NORMAL14;              // Vertex normals in NDC
-    nointerpolation float2 posScreenSpace[3]        : TEXCOORD3;
-    nointerpolation float3 posViewSpace[3]          : COLOR0;
-    nointerpolation float3 surfaceNormalNDC         : COLOR10;
-    nointerpolation float3 adjSurfaceNormalsNDC[3]  : COLOR14;           // Edge opposite normal in view space
-    nointerpolation float3 surfaceNormalVS          : COLOR24;
-    nointerpolation float3 adjSurfaceNormalsVS[3]   : COLOR28;           // Edge opposite normal in view space
-    nointerpolation bool   isDiscontinuityEdge[3]   : POSITION15; // Edge opposite normal in view space
+{ 
+    float4 posClip    : SV_Position;
+    GSOutputERAA gsOut;
 };
 
 float3 getScreenSpacePos(float4 posClip, float2 viewportSize)
@@ -62,125 +43,30 @@ float3 getNDCPos(float4 posClip)
 }
 
 [maxvertexcount(3)]
-void main_gs(
-    triangle VSOutput Input[3],
-    uint primitiveID : SV_PrimitiveID,
-    inout TriangleStream<GSOutput> Output)
-{
-    // Calculate normals in view space
-    float3 vNormals[3];
-    float3 ndcNormals[3];
-    float2 screenPos[3];
-    float3 posViewSpace[3];
-    float3 posViewShiftedNDC[3];
-    float3 adjNormalsNDC[3];
-    float3 adjNormalsVS[3];
-    float3 posNDC[3];
-
-    for(int i = 0; i < 3; ++i)
-    {
-        vNormals[i]             = Input[i].normalVS;
-        screenPos[i]            = getScreenSpacePos(Input[i].posClip, g_ViewportSize).xy;
-        posViewSpace[i]         = Input[i].posView.xyz;
-        posViewShiftedNDC[i]    = getNDCPos(mul(g_Projection, float4(Input[i].posView.xyz + Input[i].normalVS, 1.0f)));
-        posNDC[i]               = getNDCPos(Input[i].posClip); // Convert to NDC
-        ndcNormals[i]           = normalize(posNDC[i] - posViewShiftedNDC[i]); // Calculate NDC normals
-    }
-    
-    float3 edge0NDC = posNDC[1] - posNDC[0];
-    float3 edge1NDC = posNDC[2] - posNDC[0];
-    float3 surfaceNormalNDC = normalize(cross(edge0NDC, edge1NDC));
-
-    float3 edge0            = Input[1].posView.xyz - Input[0].posView.xyz;
-    float3 edge1            = Input[2].posView.xyz - Input[0].posView.xyz;
-    float3 surfaceNormalVS  = normalize(cross(edge0, edge1));
-
-    //Clockwise Surface Normals for Adjacent Triangles
-    adjNormalsNDC[0] = normalize(Input[0].normalVS + Input[1].normalVS - Input[2].normalVS);
-    adjNormalsNDC[1] = normalize(Input[1].normalVS + Input[2].normalVS - Input[0].normalVS);
-    adjNormalsNDC[2] = normalize(Input[2].normalVS + Input[0].normalVS - Input[1].normalVS);
-
-    adjNormalsVS[0]  = normalize(Input[0].normalVS + Input[1].normalVS - Input[2].normalVS);
-    adjNormalsVS[1]  = normalize(Input[1].normalVS + Input[2].normalVS - Input[0].normalVS);
-    adjNormalsVS[2]  = normalize(Input[2].normalVS + Input[0].normalVS - Input[1].normalVS);
-
-    for(int v = 0; v < 3; ++v)
-    {
-        GSOutput OutputVertex;
-		OutputVertex.posClip = Input[v].posClip;
-        OutputVertex.posView = Input[v].posView;
-        OutputVertex.normal  = Input[v].normal; // Use normal from input
-    
-        OutputVertex.normalVS[0] = vNormals[0];
-        OutputVertex.normalVS[1] = vNormals[1];
-        OutputVertex.normalVS[2] = vNormals[2];
-
-        OutputVertex.normalNDC[0] = ndcNormals[0];
-        OutputVertex.normalNDC[1] = ndcNormals[1];
-        OutputVertex.normalNDC[2] = ndcNormals[2];
-
-        OutputVertex.posScreenSpace[0] = screenPos[0];
-        OutputVertex.posScreenSpace[1] = screenPos[1];
-        OutputVertex.posScreenSpace[2] = screenPos[2];
-
-        OutputVertex.posViewSpace[0] = posViewSpace[0];
-        OutputVertex.posViewSpace[1] = posViewSpace[1];
-        OutputVertex.posViewSpace[2] = posViewSpace[2];
-
-        OutputVertex.surfaceNormalNDC           = surfaceNormalNDC;
-        OutputVertex.adjSurfaceNormalsNDC[0]    = adjNormalsNDC[0];
-        OutputVertex.adjSurfaceNormalsNDC[1]    = adjNormalsNDC[1];
-        OutputVertex.adjSurfaceNormalsNDC[2]    = adjNormalsNDC[2];
-
-        OutputVertex.surfaceNormalVS        = surfaceNormalVS;
-        OutputVertex.adjSurfaceNormalsVS[0] = adjNormalsVS[0];
-        OutputVertex.adjSurfaceNormalsVS[1] = adjNormalsVS[1];
-        OutputVertex.adjSurfaceNormalsVS[2] = adjNormalsVS[2];
-  
-  
-        OutputVertex.isDiscontinuityEdge[0] = false;
-        OutputVertex.isDiscontinuityEdge[1] = false;
-        OutputVertex.isDiscontinuityEdge[2] = false;
-
-        OutputVertex.primitiveID = primitiveID;
-    	Output.Append(OutputVertex);
-    }
-    //Output.RestartStrip();
-}
-
-bool IsDiscontinuity(float3 adjPosModel)
-{
-    return 
-        (abs(adjPosModel.x) < 0.01f) &&
-        (abs(adjPosModel.y) < 0.01f) &&
-        (abs(adjPosModel.z) < 0.01f);
-}
-
-[maxvertexcount(3)]
-void main_gs_adj(
+void main_gs0_adj(
     triangleadj VSOutput Input[6],
-    uint primitiveID : SV_PrimitiveID,
     inout TriangleStream<GSOutput> Output)
 {
+
     static const uint triIdx[3] = {0, 2, 4};
     static const uint adjIdx[3] = {1, 3, 5};
 
     // Calculate normals in view space
     float3 vNormals[3];
-    float2 screenPos[3];
+    float2 posScreen[3];
     float3 posViewSpace[3];
     float3 adjNormalsNDC[3];
     float3 adjNormalsVS[3];
-    bool   isDiscontinuityEdge[3] = {false, false, false};
+    float3 isDiscontinuityEdge  = float3(0, 0, 0);
     float3 posNDC[6];
     float3 posView[6];
 
     [unroll] for(int v = 0; v < 6; v++)
     {
         posNDC[v] = (getNDCPos(Input[v].posClip)); // Convert to NDC
-        posView[v] = Input[v].posView.xyz;
+        posView[v] = Input[v].vtx.posView.xyz;
     }
-
+    
     float3 edge0 = posNDC[4] - posNDC[0];
     float3 edge1 = posNDC[2] - posNDC[0];
     float3 surfaceNormalNDC = normalize(cross(edge0, edge1));
@@ -189,6 +75,7 @@ void main_gs_adj(
     float3 edge1VS = posView[2] - posView[0];
     float3 surfaceNormalVS = normalize(cross(edge0VS, edge1VS));
 
+    
     //Clockwise surface normals for adjacent triangles
     float3 adjEdge0 = posNDC[2] - posNDC[0];
     float3 adjEdge1 = posNDC[1] - posNDC[0];
@@ -216,88 +103,67 @@ void main_gs_adj(
     float3 adjEdge5VS = posView[5] - posView[4];
     adjNormalsVS[2] = normalize(cross(adjEdge4VS, adjEdge5VS));
 
+
     [unroll] for(int i = 0; i < 3; i++)
     {
         uint idx                 = triIdx[i]; // 0, 2, 4
         uint adIdx               = adjIdx[i]; // 1, 3, 5
         uint nextIndx            = triIdx[(i + 1) % 3]; // 2, 4, 0
         
-        vNormals[i]              = Input[idx].normalVS;
-        screenPos[i]             = getScreenSpacePos(Input [idx].posClip, g_ViewportSize).xy;
-        posViewSpace[i]          = Input[idx].posView.xyz;
-        isDiscontinuityEdge[i]   = all(Input[adIdx].posWorld.xyz == Input[nextIndx].posWorld.xyz); // Check if the edge is a discontinuity edge
+        vNormals[i]              = Input[idx].vtx.normalView;
+        posScreen[i]             = getScreenSpacePos(Input[idx].posClip, g_ForwardView.view.viewportSize).xy;
+        posViewSpace[i]          = Input[idx].vtx.posView.xyz;
+        //isDiscontinuityEdge[i]   = all(Input[adIdx].vtx.posWorld.xyz == Input[nextIndx].vtx.posWorld.xyz) ? 1.0f : 0.0f; //  with floats can miss matches due to precision
+
+        //TODO: try this:
+        isDiscontinuityEdge[i] = all(abs(Input[adIdx].vtx.posWorld.xyz - Input[nextIndx].vtx.posWorld.xyz) < 0.0001) ? 1.0f : 0.0f;
     }
-
-
+  
     [unroll] for(int j = 0; j < 3; j++)
     {
         uint idx = triIdx[j];
         GSOutput OutputVertex;
-		OutputVertex.posClip = Input[idx].posClip;
-        OutputVertex.posView = Input[idx].posView;
-		OutputVertex.normal  = Input[idx].normal; // Use normal from input
+		OutputVertex.posClip            = Input[idx].posClip;
+        OutputVertex.gsOut.posVS        = Input[idx].vtx.posView;
+		OutputVertex.gsOut.normal       = Input[idx].vtx.normal; // Use normal from input
+        OutputVertex.gsOut.normalView   = Input[idx].vtx.normalView;
+        OutputVertex.gsOut.normalNDC    = Input[idx].vtx.normalView;
 
-        OutputVertex.normalVS[0] = vNormals[0];
-        OutputVertex.normalVS[1] = vNormals[1];
-        OutputVertex.normalVS[2] = vNormals[2];
+        OutputVertex.gsOut.normalVS[0]  = vNormals[0];
+        OutputVertex.gsOut.normalVS[1]  = vNormals[1];
+        OutputVertex.gsOut.normalVS[2]  = vNormals[2];
         
-        OutputVertex.normalNDC[0] = vNormals[0];
-        OutputVertex.normalNDC[1] = vNormals[1];
-        OutputVertex.normalNDC[2] = vNormals[2];
+        OutputVertex.gsOut.normalNDCoords[0] = vNormals[0];
+        OutputVertex.gsOut.normalNDCoords[1] = vNormals[1];
+        OutputVertex.gsOut.normalNDCoords[2] = vNormals[2];
 
-        OutputVertex.posScreenSpace[0] = screenPos[0];
-        OutputVertex.posScreenSpace[1] = screenPos[1];
-        OutputVertex.posScreenSpace[2] = screenPos[2];
+        OutputVertex.gsOut.posScreenSpace[0] = posScreen[0];
+        OutputVertex.gsOut.posScreenSpace[1] = posScreen[1];
+        OutputVertex.gsOut.posScreenSpace[2] = posScreen[2];
 
-        OutputVertex.posViewSpace[0] = posViewSpace[0];
-        OutputVertex.posViewSpace[1] = posViewSpace[1];
-        OutputVertex.posViewSpace[2] = posViewSpace[2];
+        OutputVertex.gsOut.posViewSpace[0] = posViewSpace[0];
+        OutputVertex.gsOut.posViewSpace[1] = posViewSpace[1];
+        OutputVertex.gsOut.posViewSpace[2] = posViewSpace[2];
 
-        OutputVertex.surfaceNormalNDC        = surfaceNormalNDC;
-        OutputVertex.adjSurfaceNormalsNDC[0] = adjNormalsNDC[0];
-        OutputVertex.adjSurfaceNormalsNDC[1] = adjNormalsNDC[1];
-        OutputVertex.adjSurfaceNormalsNDC[2] = adjNormalsNDC[2];
+        OutputVertex.gsOut.surfaceNormalNDC        = surfaceNormalNDC;
+        OutputVertex.gsOut.adjSurfaceNormalsNDC[0] = adjNormalsNDC[0];
+        OutputVertex.gsOut.adjSurfaceNormalsNDC[1] = adjNormalsNDC[1];
+        OutputVertex.gsOut.adjSurfaceNormalsNDC[2] = adjNormalsNDC[2];
 
-        OutputVertex.surfaceNormalVS         = surfaceNormalVS;
-        OutputVertex.adjSurfaceNormalsVS[0]  = adjNormalsVS[0];
-        OutputVertex.adjSurfaceNormalsVS[1]  = adjNormalsVS[1];
-        OutputVertex.adjSurfaceNormalsVS[2]  = adjNormalsVS[2];
+        OutputVertex.gsOut.surfaceNormalVS         = surfaceNormalVS;
+        OutputVertex.gsOut.adjSurfaceNormalsVS[0]  = adjNormalsVS[0];
+        OutputVertex.gsOut.adjSurfaceNormalsVS[1]  = adjNormalsVS[1];
+        OutputVertex.gsOut.adjSurfaceNormalsVS[2]  = adjNormalsVS[2];
 
-        OutputVertex.isDiscontinuityEdge[0] = isDiscontinuityEdge[0];
-        OutputVertex.isDiscontinuityEdge[1] = isDiscontinuityEdge[1];
-        OutputVertex.isDiscontinuityEdge[2] = isDiscontinuityEdge[2];
+        OutputVertex.gsOut.isDiscontinuityEdge[0] = isDiscontinuityEdge[0];
+        OutputVertex.gsOut.isDiscontinuityEdge[1] = isDiscontinuityEdge[1];
+        OutputVertex.gsOut.isDiscontinuityEdge[2] = isDiscontinuityEdge[2];
 
-        OutputVertex.primitiveID = primitiveID;
     	Output.Append(OutputVertex);
     }
 }
-*/
-
-struct VSOutput
-{
-    float4 posClip : SV_Position;
-    SceneVertex vtx;
-};
-
-struct GSOutput
-{
-    VSOutput Passthrough;
-};
 
 
-[maxvertexcount(3)]
-void main_gs0(
-    triangle VSOutput Input[3],
-    inout TriangleStream<GSOutput> Output)
-{
-    GSOutput OutputVertex;
 
-    OutputVertex.Passthrough = Input[0];
-    Output.Append(OutputVertex);
-    OutputVertex.Passthrough = Input[1];
-    Output.Append(OutputVertex);
-    OutputVertex.Passthrough = Input[2];
-    Output.Append(OutputVertex);
-}
 
 

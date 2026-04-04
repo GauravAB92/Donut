@@ -93,6 +93,7 @@ set(byproducts
 	passes/eraa_pass_ps
 	passes/eraa_pass_vs
 	passes/eraa_pass_gs
+	passes/eraa_resolve_ps
 )
 
 if(DONUT_WITH_AFTERMATH OR DONUT_EMBED_SHADER_PDBS)

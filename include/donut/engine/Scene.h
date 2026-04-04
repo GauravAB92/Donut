@@ -23,6 +23,7 @@
 #pragma once
 
 #include <donut/engine/SceneGraph.h>
+#include <donut/engine/MeshOperations.h>
 #include <nvrhi/nvrhi.h>
 #include <vector>
 #include <memory>

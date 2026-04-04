@@ -533,26 +533,3 @@ bool intersectEdgeWithPixel(
   return intersecting;
 }
 
-
-float Cross2D(float2 a, float2 b)
-{
-    return a.x * b.y - a.y * b.x;
-}
-
-// input: triangle vertices in screen space (clockwise), and pixel center
-bool pixelInsideTest(float2 v[3], float2 p)
-{
-    float2 e0 = v[1] - v[0];
-    float2 e1 = v[2] - v[1];
-    float2 e2 = v[0] - v[2];
-
-    float2 et0 = p - v[0];
-    float2 et1 = p - v[1];
-    float2 et2 = p - v[2];
-
-    float c0 = Cross2D(et0, e0);
-    float c1 = Cross2D(et1, e1);
-    float c2 = Cross2D(et2, e2);
-
-    return (c0 <= 0.0f && c1 <= 0.0f && c2 <= 0.0f);
-}

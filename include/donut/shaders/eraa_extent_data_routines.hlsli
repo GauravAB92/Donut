@@ -1,4 +1,8 @@
-#include "../Croissant/shaders/common/common_utils.hlsli"
+#ifndef ERAA_EXTENT_DATA_ROUTINES_HLSLI
+#define ERAA_EXTENT_DATA_ROUTINES_HLSLI
+
+#include <donut/shaders/eraa_shared_routines.hlsli>
+
 
 // Computes the depth of a point on a plane defined by a point and a normal vector.
 // Returns ndc z[0,1]
@@ -162,11 +166,7 @@ void evaluateExtentedDepth(
 }
 
 
-
-
-
-
-
+#endif // ERAA_EXTENT_DATA_ROUTINES_HLSLI
 
 
 

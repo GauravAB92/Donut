@@ -55,7 +55,10 @@
 
 using namespace donut::math;
 #include <donut/shaders/forward_cb.h>
+#include <donut/app/DeviceManager.h>
 
+
+#include <donut/shaders/blit_cb.h>
 
 using namespace donut::engine;
 using namespace donut::render;
@@ -71,10 +74,15 @@ ERAAPass::ERAAPass(
 
 void ERAAPass::Init(ShaderFactory& shaderFactory, const CreateParameters& params)
 {
+	m_UseGSAdjacency = params.gsAdjacencyMode;
+
     m_UseInputAssembler = params.useInputAssembler;
 
     m_SupportedViewTypes = ViewType::PLANAR;
  
+    m_RectVS        = shaderFactory.CreateAutoShader("donut/rect_vs.hlsl", "main", DONUT_MAKE_PLATFORM_SHADER(g_rect_vs), nullptr, nvrhi::ShaderType::Vertex);
+    m_EraaResolvePS = shaderFactory.CreateAutoShader("donut/passes/eraa_resolve_ps.hlsl", "main_ps", DONUT_MAKE_PLATFORM_SHADER(g_eraa_resolve_ps), nullptr, nvrhi::ShaderType::Pixel);
+
     m_VertexShader = CreateVertexShader(shaderFactory, params);
     m_InputLayout = CreateInputLayout(m_VertexShader, params);
     m_GeometryShader = CreateGeometryShader(shaderFactory, params);
@@ -93,6 +101,18 @@ void ERAAPass::Init(ShaderFactory& shaderFactory, const CreateParameters& params
     m_ViewBindingSet = CreateViewBindingSet();
     m_ShadingBindingLayout = CreateShadingBindingLayout();
     m_InputBindingLayout = CreateInputBindingLayout();
+
+    {
+        nvrhi::BindingLayoutDesc layoutDesc;
+        layoutDesc.visibility = nvrhi::ShaderType::All;
+        layoutDesc.bindings = {
+            nvrhi::BindingLayoutItem::PushConstants(0, sizeof(BlitConstants)),
+            nvrhi::BindingLayoutItem::Texture_SRV(0),
+            nvrhi::BindingLayoutItem::Texture_UAV(1),
+        };
+
+        m_ResolveBindingLayout = m_Device->createBindingLayout(layoutDesc);
+    }
 
 }
 
@@ -113,7 +133,7 @@ nvrhi::ShaderHandle ERAAPass::CreateGeometryShader(ShaderFactory& shaderFactory,
 {
     if (params.gsAdjacencyMode)
     {
-        return shaderFactory.CreateAutoShader("donut/passes/eraa_pass_gs.hlsl", "main_gs_adj", DONUT_MAKE_PLATFORM_SHADER(g_forward_gs_adj), nullptr, nvrhi::ShaderType::Geometry);
+        return shaderFactory.CreateAutoShader("donut/passes/eraa_pass_gs.hlsl", "main_gs0_adj", DONUT_MAKE_PLATFORM_SHADER(g_forward_gs_adj), nullptr, nvrhi::ShaderType::Geometry);
     }
     else
     {
@@ -141,17 +161,15 @@ nvrhi::InputLayoutHandle ERAAPass::CreateInputLayout(nvrhi::IShader* vertexShade
             GetVertexAttributeDesc(VertexAttribute::Tangent, "TANGENT", 4),
             GetVertexAttributeDesc(VertexAttribute::Transform, "TRANSFORM", 5),
         };
-
         return m_Device->createInputLayout(inputDescs, uint32_t(std::size(inputDescs)), vertexShader);
     }
-
     return nullptr;
 }
 
 nvrhi::BindingLayoutHandle ERAAPass::CreateViewBindingLayout()
 {
     auto bindingLayoutDesc = nvrhi::BindingLayoutDesc()
-        .setVisibility(nvrhi::ShaderType::Vertex | nvrhi::ShaderType::Pixel)
+        .setVisibility(nvrhi::ShaderType::Vertex | nvrhi::ShaderType::Geometry |  nvrhi::ShaderType::Pixel)
         .setRegisterSpaceAndDescriptorSet(FORWARD_SPACE_VIEW)
         .addItem(nvrhi::BindingLayoutItem::VolatileConstantBuffer(FORWARD_BINDING_VIEW_CONSTANTS));
 
@@ -196,10 +214,12 @@ void ERAAPass::CreateShadingBindingSet(nvrhi::ITexture* eraaOffsets, nvrhi::ITex
 }
 
 
+
 nvrhi::GraphicsPipelineHandle ERAAPass::CreateGraphicsPipeline(ERAAPassPipelineKey const& key,
     nvrhi::FramebufferInfo const& framebufferInfo)
 {
     nvrhi::GraphicsPipelineDesc pipelineDesc;
+	pipelineDesc.primType = m_UseGSAdjacency ? nvrhi::PrimitiveType::TriangleListWithAdjacency : nvrhi::PrimitiveType::TriangleList;
     pipelineDesc.inputLayout = m_InputLayout;
     pipelineDesc.VS = m_VertexShader;
     pipelineDesc.GS = m_GeometryShader;
@@ -207,8 +227,8 @@ nvrhi::GraphicsPipelineHandle ERAAPass::CreateGraphicsPipeline(ERAAPassPipelineK
     pipelineDesc.renderState.rasterState.frontCounterClockwise = key.frontCounterClockwise;
     pipelineDesc.renderState.rasterState.setCullMode(key.cullMode);
     pipelineDesc.renderState.rasterState.setConservativeRasterEnable(true);
-    //pipelineDesc.renderState.depthStencilState.setDepthTestEnable(true);
-   // pipelineDesc.renderState.depthStencilState.setDepthWriteEnable(false);
+    pipelineDesc.renderState.depthStencilState.setDepthTestEnable(false);
+    pipelineDesc.renderState.depthStencilState.setDepthWriteEnable(false);
  
     pipelineDesc.renderState.depthStencilState
         .setDepthFunc(key.reverseDepth
@@ -216,11 +236,10 @@ nvrhi::GraphicsPipelineHandle ERAAPass::CreateGraphicsPipeline(ERAAPassPipelineK
             : nvrhi::ComparisonFunc::LessOrEqual);
 
     pipelineDesc.renderState.blendState.alphaToCoverageEnable = false;
-   // pipelineDesc.shadingRateState = key.shadingRateState;
+    //pipelineDesc.shadingRateState = key.shadingRateState;
     pipelineDesc.bindingLayouts = {  m_ViewBindingLayout , m_ShadingBindingLayout };
     pipelineDesc.bindingLayouts.push_back(m_InputBindingLayout);
 
-    
     return m_Device->createGraphicsPipeline(pipelineDesc, framebufferInfo);
 }
 
@@ -236,9 +255,9 @@ void ERAAPass::SetupView(
     view->FillPlanarViewConstants(viewConstants.view);
     commandList->writeBuffer(m_ForwardViewCB, &viewConstants, sizeof(viewConstants));
 
-    context.keyTemplate.frontCounterClockwise = view->IsMirrored();
-    context.keyTemplate.reverseDepth = view->IsReverseDepth();
-    context.keyTemplate.shadingRateState = view->GetVariableRateShadingState();
+    context.keyTemplate.frontCounterClockwise   = view->IsMirrored();
+    context.keyTemplate.reverseDepth            = view->IsReverseDepth();
+    context.keyTemplate.shadingRateState        = view->GetVariableRateShadingState();
 }
 
 ViewType::Enum ERAAPass::GetSupportedViewTypes() const
@@ -289,7 +308,7 @@ void ERAAPass::SetupInputBuffers(GeometryPassContext& abstractContext, const Buf
 {
     auto& context = static_cast<Context&>(abstractContext);
 
-    state.indexBuffer = { buffers->indexBuffer, nvrhi::Format::R32_UINT, 0 };
+    state.indexBuffer = { m_UseGSAdjacency ? buffers->adjIndexBuffer : buffers->indexBuffer, nvrhi::Format::R32_UINT, 0 };
 
     context.inputBindingSet = GetOrCreateInputBindingSet(buffers);
     context.positionOffset  = uint32_t(buffers->getVertexBufferRange(VertexAttribute::Position).byteOffset);
@@ -353,14 +372,99 @@ void ERAAPass::SetPushConstants(
 
     ForwardPushConstants constants;
     constants.startInstanceLocation = args.startInstanceLocation;
-    constants.startVertexLocation = args.startVertexLocation;
-    constants.positionOffset = context.positionOffset;
-    constants.texCoordOffset = context.texCoordOffset;
-    constants.normalOffset = context.normalOffset;
-    constants.tangentOffset = context.tangentOffset;
+    constants.startVertexLocation   = args.startVertexLocation;
+    constants.positionOffset        = context.positionOffset;
+    constants.texCoordOffset        = context.texCoordOffset;
+    constants.normalOffset          = context.normalOffset;
+    constants.tangentOffset         = context.tangentOffset;
 
     commandList->setPushConstants(&constants, sizeof(constants));
 
     args.startInstanceLocation = 0;
     args.startVertexLocation = 0;
 }
+
+
+void ERAAPass::Resolve(nvrhi::ICommandList* commandList, const ResolveParams& params)
+{
+    assert(commandList);
+    assert(params.targetFramebuffer);
+    assert(params.unResolvedTexture);
+    assert(params.eraaOffsetsTexture);
+
+
+    const nvrhi::FramebufferDesc& fbDesc = params.targetFramebuffer->getDesc();
+    assert(fbDesc.colorAttachments.size() == 1);
+    assert(fbDesc.colorAttachments[0].valid());
+
+
+    const nvrhi::FramebufferInfoEx& fbinfo = params.targetFramebuffer->getFramebufferInfo();
+    const nvrhi::TextureDesc& sourceDesc = params.unResolvedTexture->getDesc();
+
+    assert(sourceDesc.dimension == nvrhi::TextureDimension::Texture2D);
+
+
+    nvrhi::Viewport targetViewport = params.targetViewport;
+    if (targetViewport.width() == 0 && targetViewport.height() == 0)
+    {
+        // If no viewport is specified, create one based on the framebuffer dimensions.
+        // Note that the FB dimensions may not be the same as target texture dimensions, in case a non-zero mip level is used.
+        targetViewport = nvrhi::Viewport(float(fbinfo.width), float(fbinfo.height));
+    }
+
+    nvrhi::IShader* shader = nullptr;
+
+    if(!m_ResolvePipeline)
+    {
+        nvrhi::GraphicsPipelineDesc psoDesc;
+        psoDesc.bindingLayouts = { m_ResolveBindingLayout };
+        psoDesc.VS = m_RectVS;
+        psoDesc.PS = m_EraaResolvePS;
+        psoDesc.primType = nvrhi::PrimitiveType::TriangleStrip;
+        psoDesc.renderState.rasterState.setCullNone();
+        psoDesc.renderState.depthStencilState.depthTestEnable = false;
+        psoDesc.renderState.depthStencilState.stencilEnable = false;
+        m_ResolvePipeline = m_Device->createGraphicsPipeline(psoDesc, params.targetFramebuffer);
+    }
+
+
+    nvrhi::BindingSetDesc bindingSetDesc;
+    {
+        auto sourceDimension = sourceDesc.dimension;
+
+        auto sourceSubresources = nvrhi::TextureSubresourceSet(params.sourceMip, 1, params.sourceArraySlice, 1);
+
+        bindingSetDesc.bindings = {
+            nvrhi::BindingSetItem::PushConstants(0, sizeof(BlitConstants)),
+            nvrhi::BindingSetItem::Texture_SRV(0, params.unResolvedTexture,  params.unResolvedTextureFormat, sourceSubresources,  nvrhi::TextureDimension::Texture2D),
+            nvrhi::BindingSetItem::Texture_UAV(1, params.eraaOffsetsTexture, params.eraaOffsetsTextureFormat, sourceSubresources,  nvrhi::TextureDimension::Texture2D),
+        };
+    }
+    // If a binding cache is provided, get the binding set from the cache.
+    // Otherwise, create one and then release it.
+    nvrhi::BindingSetHandle sourceBindingSet;
+    sourceBindingSet = m_Device->createBindingSet(bindingSetDesc, m_ResolveBindingLayout);
+
+    nvrhi::GraphicsState state;
+    state.pipeline = m_ResolvePipeline;
+    state.framebuffer = params.targetFramebuffer;
+    state.bindings = { sourceBindingSet };
+    state.viewport.addViewport(targetViewport);
+    state.viewport.addScissorRect(nvrhi::Rect(targetViewport));
+
+
+    BlitConstants blitConstants = {};
+    blitConstants.sourceOrigin = float2(params.sourceBox.m_mins);
+    blitConstants.sourceSize = params.sourceBox.diagonal();
+    blitConstants.targetOrigin = float2(params.targetBox.m_mins);
+    blitConstants.targetSize = params.targetBox.diagonal();
+
+    commandList->setGraphicsState(state);
+    commandList->setPushConstants(&blitConstants, sizeof(blitConstants));
+
+    nvrhi::DrawArguments args;
+    args.instanceCount = 1;
+    args.vertexCount = 4;
+    commandList->draw(args);
+}
+

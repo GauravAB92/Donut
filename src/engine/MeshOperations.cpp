@@ -4,9 +4,7 @@
 
 bool donut::engine::GenerateHalfEdgeData(std::shared_ptr<BufferGroup>& buffers)
 {
-	assert(!buffers->indexData.empty());
-	assert(!buffers->positionData.empty());
-
+	
 	const uint32_t triCount = static_cast<uint32_t>(buffers->indexData.size() / 3);
 
 	buffers->halfEdgesData.clear();
@@ -100,9 +98,7 @@ uint32_t donut::engine::getAdjVertexIndex(std::shared_ptr<BufferGroup>& buffers,
 
 bool donut::engine::GenerateAdjacencyIndices(std::shared_ptr<BufferGroup>& buffers)
 {
-	assert(!buffers->indexData.empty());
-	assert(!buffers->positionData.empty());
-
+	
 	buffers->adjIndexData.clear();
 
 	for (auto& face : buffers->facesData)

@@ -34,12 +34,13 @@ StructuredBuffer<InstanceData> t_Instances  : REGISTER_SRV(FORWARD_BINDING_INSTA
 ByteAddressBuffer t_Vertices                : REGISTER_SRV(FORWARD_BINDING_VERTEX_BUFFER, FORWARD_SPACE_INPUT);
 DECLARE_PUSH_CONSTANTS(ForwardPushConstants, g_Push, FORWARD_BINDING_PUSH_CONSTANTS, FORWARD_SPACE_INPUT);
 
+
 // Version of the vertex shader that uses buffer loads to read vertex attributes and transforms.
 void main_vs(
     in uint i_vertex : SV_VertexID,
 	in uint i_instance : SV_InstanceID,
     out float4 o_position : SV_Position,
-    out SceneVertex o_vtx
+    out SceneVertexData o_vtx
 )
 {
     i_instance 	+= g_Push.startInstanceLocation;
@@ -47,20 +48,25 @@ void main_vs(
 
     const InstanceData instance = t_Instances[i_instance];
 
-    float3 pos = asfloat(t_Vertices.Load3(g_Push.positionOffset + i_vertex * c_SizeOfPosition));
-    float2 texCoord = asfloat(t_Vertices.Load2(g_Push.texCoordOffset + i_vertex * c_SizeOfTexcoord));
-    uint packedNormal = t_Vertices.Load(g_Push.normalOffset + i_vertex * c_SizeOfNormal);
-    uint packedTangent = t_Vertices.Load(g_Push.tangentOffset + i_vertex * c_SizeOfNormal);
-    float3 normal = Unpack_RGB8_SNORM(packedNormal);
-    float4 tangent = Unpack_RGBA8_SNORM(packedTangent);
+    float3 pos 			= asfloat(t_Vertices.Load3(g_Push.positionOffset + i_vertex * c_SizeOfPosition));
+    float2 texCoord 	= asfloat(t_Vertices.Load2(g_Push.texCoordOffset + i_vertex * c_SizeOfTexcoord));
+    uint packedNormal 	= t_Vertices.Load(g_Push.normalOffset + i_vertex * c_SizeOfNormal);
+    uint packedTangent 	= t_Vertices.Load(g_Push.tangentOffset + i_vertex * c_SizeOfNormal);
+    float3 normal 		= Unpack_RGB8_SNORM(packedNormal);
+    float4 tangent 		= Unpack_RGBA8_SNORM(packedTangent);
 
-    o_vtx.pos 			= mul(instance.transform, float4(pos, 1.0)).xyz;
-    o_vtx.prevPos 		= o_vtx.pos;
-    o_vtx.texCoord 		= texCoord;
-    o_vtx.normal 		= mul(instance.transform, float4(normal, 0)).xyz;
-    o_vtx.tangent.xyz 	= mul(instance.transform, float4(tangent.xyz, 0)).xyz;
-    o_vtx.tangent.w 	= tangent.w;
+    float3 worldPos 	= mul(instance.transform, float4(pos, 1.0)).xyz;
 
-    float4 worldPos = float4(o_vtx.pos, 1.0);
-    o_position 		= mul(worldPos, g_ForwardView.view.matWorldToClip);
+	o_vtx.posWorld      = worldPos;
+	o_vtx.posView       = mul(float4(worldPos,1.0), g_ForwardView.view.matWorldToView).xyz;
+	o_vtx.texCoord      = texCoord;
+	o_vtx.normal        = mul(instance.transform, float4(normal, 0)).xyz;
+	o_vtx.normalView    = mul(float4(o_vtx.normal, 0),g_ForwardView.view.matWorldToView).xyz;
+	o_vtx.tangent.xyz   = mul(instance.transform, float4(tangent.xyz, 0)).xyz;
+	o_vtx.tangent.w     = tangent.w;
+
+    o_position 			= mul(float4(worldPos,1.0), g_ForwardView.view.matWorldToClip);
 }
+
+
+

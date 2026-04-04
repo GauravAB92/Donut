@@ -1045,6 +1045,7 @@ bool GltfImporter::Load(
 
     auto buffers = std::make_shared<BufferGroup>();
 
+    buffers->adjIndexData.resize(totalIndices * 2);
     buffers->indexData.resize(totalIndices);
     buffers->positionData.resize(totalVertices);
     buffers->normalData.resize(totalVertices);

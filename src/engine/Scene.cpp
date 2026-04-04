@@ -605,6 +605,7 @@ void Scene::RefreshBuffers(nvrhi::ICommandList* commandList, uint32_t frameIndex
     bool materialsChanged = false;
 
     if (m_SceneStructureChanged)
+		CreateMeshAdjacencyBuffers(commandList);
         CreateMeshBuffers(commandList);
 
     const size_t allocationGranularity = 1024;
@@ -828,6 +829,12 @@ void donut::engine::Scene::CreateMeshAdjacencyBuffers(nvrhi::ICommandList* comma
 
         if (!buffers)
             continue;
+
+        GenerateHalfEdgeData(buffers);
+        GenerateAdjacencyIndices(buffers);
+
+     /*   log::info("Mesh '%s': %d triangles, %d adjacency indices.",
+			mesh->name, buffers->indexData.size() / 3, buffers->adjIndexData.size());*/
 
 		// Adjacency index buffer is only needed for eraa pass only 
         if (!buffers->adjIndexData.empty() && !buffers->adjIndexBuffer)

@@ -108,8 +108,8 @@ namespace donut::render
 
             uint32_t positionOffset = 0;
             uint32_t texCoordOffset = 0;
-            uint32_t normalOffset = 0;
-            uint32_t tangentOffset = 0;
+            uint32_t normalOffset   = 0;
+            uint32_t tangentOffset  = 0;
         };
 
         struct CreateParameters
@@ -121,7 +121,6 @@ namespace donut::render
             // Switches between loading vertex data through the Input Assembler (true) or buffer SRVs (false).
             // Using Buffer SRVs is often faster.
             bool useInputAssembler = false;
-
             uint32_t numConstantBufferVersions = 16;
         };
 

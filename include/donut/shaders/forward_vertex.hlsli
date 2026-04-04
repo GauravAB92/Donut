@@ -28,8 +28,35 @@ struct SceneVertex
     float3 pos : POS;
     float3 prevPos : PREV_POS;
     float2 texCoord : TEXCOORD;
-    centroid float3 normal : NORMAL;
-    centroid float4 tangent : TANGENT;
+    float3 normal : NORMAL;
+    float4 tangent : TANGENT;
 };
 
+//For ERAA
+struct SceneVertexData
+{
+	float3 posWorld : POS_WORLD;
+	float3 posView  : POS_VIEW;
+    float2 texCoord : TEXCOORD;
+    float3 normal : NORMAL;
+    float3 normalView: NORMAL4;
+    float4 tangent : TANGENT;
+};
+
+struct GSOutputERAA
+{
+    float3 posVS                                    : POS_VIEW;
+    float3 normal                                   : NORMAL;
+    float3 normalView                               : NORMAL4;
+    float3 normalNDC                                : NORMAL8;
+    nointerpolation float3 normalVS[3]              : NORMAL12;
+    nointerpolation float3 normalNDCoords[3]        : NORMAL24;
+    nointerpolation float2 posScreenSpace[3]        : TEXCOORD0;
+    nointerpolation float3 posViewSpace[3]          : COLOR0;
+    nointerpolation float3 surfaceNormalNDC         : COLOR10;
+    nointerpolation float3 adjSurfaceNormalsNDC[3]  : COLOR14;
+    nointerpolation float3 surfaceNormalVS          : COLOR24;
+    nointerpolation float3 adjSurfaceNormalsVS[3]   : COLOR28;
+    nointerpolation float3 isDiscontinuityEdge      : POSITION15;
+};
 #endif

@@ -45,8 +45,9 @@ namespace donut::render
 {
     struct ERAAPassPipelineKey
     {
-        engine::MaterialDomain domain = engine::MaterialDomain::Opaque;
+        engine::MaterialDomain domain  = engine::MaterialDomain::Opaque;
         nvrhi::RasterCullMode cullMode = nvrhi::RasterCullMode::Back;
+        
         bool frontCounterClockwise = false;
         bool reverseDepth = false;
         nvrhi::VariableRateShadingState shadingRateState{};
@@ -117,6 +118,22 @@ namespace donut::render
             uint32_t numConstantBufferVersions = 16;
         };
 
+        struct ResolveParams
+        {
+            nvrhi::IFramebuffer* targetFramebuffer = nullptr;
+            nvrhi::Viewport targetViewport;
+            dm::box2 targetBox = dm::box2(0.f, 1.f);
+            dm::box2 sourceBox = dm::box2(0.f, 1.f);
+            uint32_t sourceArraySlice = 0;
+            uint32_t sourceMip = 0;
+            nvrhi::Format unResolvedTextureFormat       = nvrhi::Format::UNKNOWN;
+            nvrhi::Format eraaOffsetsTextureFormat      = nvrhi::Format::RGBA32_FLOAT;
+            
+            //Input textures
+            nvrhi::ITexture* unResolvedTexture = nullptr;
+            nvrhi::ITexture* eraaOffsetsTexture = nullptr;
+        };
+
 
     protected:
         nvrhi::DeviceHandle m_Device;
@@ -125,23 +142,29 @@ namespace donut::render
         nvrhi::ShaderHandle m_PixelShader;
         nvrhi::ShaderHandle m_PixelShaderTransmissive;
         nvrhi::ShaderHandle m_GeometryShader;
+        nvrhi::ShaderHandle m_RectVS;
+		nvrhi::ShaderHandle m_EraaResolvePS;
         nvrhi::SamplerHandle m_ShadowSampler;
         nvrhi::BindingLayoutHandle m_ViewBindingLayout;
         nvrhi::BindingSetHandle m_ViewBindingSet;
         nvrhi::BindingLayoutHandle m_ShadingBindingLayout;
         nvrhi::BindingLayoutHandle m_InputBindingLayout;
+        nvrhi::BindingLayoutHandle m_ResolveBindingLayout;
+
         engine::ViewType::Enum m_SupportedViewTypes = engine::ViewType::PLANAR;
         nvrhi::BufferHandle m_ForwardViewCB;
         nvrhi::BufferHandle m_ForwardLightCB;
         nvrhi::BindingSetHandle m_ShaderBindingSet;
 
+		nvrhi::GraphicsPipelineHandle m_ResolvePipeline;
 
+		bool m_UseGSAdjacency = false;
         bool m_TrackLiveness = true;
         bool m_IsDX11 = false;
         bool m_UseInputAssembler = false;
         std::mutex m_Mutex;
 
-        std::unordered_map<ERAAPassPipelineKey, nvrhi::GraphicsPipelineHandle> m_Pipelines;
+        std::unordered_map<ERAAPassPipelineKey, nvrhi::GraphicsPipelineHandle>  m_Pipelines;
         std::unordered_map<const engine::BufferGroup*, nvrhi::BindingSetHandle> m_InputBindingSets;
 
         std::shared_ptr<engine::CommonRenderPasses> m_CommonPasses;
@@ -169,9 +192,10 @@ namespace donut::render
 
         void ResetBindingCache();
 
-
         void CreateShadingBindingSet(nvrhi::ITexture* eraaOffsets,
             nvrhi::ITexture* depthReadTexture, nvrhi::ITexture* depthWriteTexture, nvrhi::ITexture* eraaReadTexture, nvrhi::ITexture* eraaWriteTexture);
+
+		void Resolve(nvrhi::ICommandList* commandList, const ResolveParams& params);
 
         // IGeometryPass implementation
 
