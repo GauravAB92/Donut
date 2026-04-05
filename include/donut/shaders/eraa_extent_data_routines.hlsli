@@ -160,8 +160,8 @@ void evaluateExtentedDepth(
             float z1 = zc + gx*c1.x + gy*c1.y;
             float z2 = zc + gx*c2.x + gy*c2.y;
             float z3 = zc + gx*c3.x + gy*c3.y;
-            extentedDepthMin         = min(min(z0,z1), min(z2,z3));
-            extentedDepthMax         = max(max(z0,z1), max(z2,z3));
+            extentedDepthMax         = min(min(z0,z1), min(z2,z3));
+            extentedDepthMin         = max(max(z0,z1), max(z2,z3));
     }
 }
 

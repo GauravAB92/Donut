@@ -102,8 +102,7 @@ float CoverageFromCenterAxes(float X, float Y)
 bool falseIntersection(float prevZ, float adjZ, float extPrev, bool failedDepthTest, out float eprime)
 {
     eprime   =  CalculateEprime(prevZ, extPrev);
-   // return false;
-    return failedDepthTest ? (eprime <= adjZ) : (eprime >= adjZ); // Account for floating point precision issues
+    return failedDepthTest ? (eprime >= adjZ) : (eprime <= adjZ); // Account for floating point precision issues
 }
 
 void setEdgeInterceptsAndArea(float Dc, float Di, int index, bool offsetsOutside, out EdgeResult r)
@@ -166,7 +165,7 @@ bool buildIntersectionEdge(
     float2 edgeSegment[2]   = {float2(0.0f, 0.0f), float2(0.0f, 0.0f)};
     LRUDOffsets             = float4(0.0, 0.0, 0.0, 0.0);
     eprime                  = 0.0f;
-    float dcSign            = sign(depthDiffs[4]) >= 0.0f ? 1.0f : -1.0f;
+    float dcSign            = sign(depthDiffs[4]) > 0.0f ? 1.0f : -1.0f;
     float dcMag             = abs(depthDiffs[4]); 
 
     // Quadrant definitions: [diagonal, horizontal, vertical]
@@ -199,9 +198,9 @@ bool buildIntersectionEdge(
         int horz = quads[i][1];
         int vert = quads[i][2];
         
-        float diagSign = sign(depthDiffs[diag]) >= 0.0f ? 1.0f : -1.0f; // Treat zero as positive to avoid ambiguity
-        float horzSign = sign(depthDiffs[horz]) >= 0.0f ? 1.0f : -1.0f;
-        float vertSign = sign(depthDiffs[vert]) >= 0.0f ? 1.0f : -1.0f;
+        float diagSign = sign(depthDiffs[diag]) >  0.0f ? 1.0f : -1.0f; // Treat zero as positive to avoid ambiguity
+        float horzSign = sign(depthDiffs[horz]) >  0.0f ? 1.0f : -1.0f;
+        float vertSign = sign(depthDiffs[vert]) >  0.0f ? 1.0f : -1.0f;
         bool validEdge = false;
         bool falseEdge = false;
         bool failedDepthTest = (dcSign < 0);

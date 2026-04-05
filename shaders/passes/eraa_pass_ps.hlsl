@@ -21,8 +21,8 @@
 */
 
 #define USE_GS_ADJACENCY_DATA 1
-#define DEBUG_OFFSETS 0
-
+#define DEBUG_OFFSETS 1
+#define DETECT_IMPLICIT_EDGES 0
 
 #pragma pack_matrix(row_major)
 
@@ -99,6 +99,39 @@ out float4 outputColor
 }
 
 
+bool detectImplicitEdges(
+    float2 pixelCenter,
+    float currDepths          [9],
+    float prevDepths          [9],
+    float depthDiffs          [9],
+    float prevExtents         [9],
+    bool  pixelInTriangle     [9],
+    float extent,
+    float extent_prev,
+    out float4 LRUDOffsets)
+{
+    LRUDOffsets = float4(0.0, 0.0, 0.0, 0.0);
+    float eprime = 0.0f;
+    float3 xiyiA = float3(0.0f, 0.0f, 0.0f);
+    float4 edgeSegment = float4(0.0f, 0.0f, 0.0f, 0.0f);
+
+    return buildIntersectionEdge(
+        pixelCenter,
+        currDepths,
+        prevDepths,
+        depthDiffs,
+        prevExtents,
+        pixelInTriangle,
+        extent,
+        extent_prev,
+        LRUDOffsets,
+        xiyiA,
+        eprime,
+        edgeSegment
+        );
+}
+
+
 void main_ps(
     in float4 posScreen     : SV_Position,
     in GSOutputERAA Input,
@@ -136,10 +169,23 @@ void main_ps(
     inclusionTest(Input.posScreenSpace, posScreen.xy, pixelInTriangle);
     buildDepthDeltas(posScreen.xyz, currDepths, prevDepths, depthDiffs, currExtents, extentFramebuffer);
 
+#if DETECT_IMPLICIT_EDGES
+
+    if(detectImplicitEdges(posScreen.xy,currDepths, prevDepths, depthDiffs, extentFramebuffer, pixelInTriangle,
+     extentMax, extentPrev, outputColor))
+    { 
+        edgeType            = EdgeType::Edge_Intersection;
+        //outputColor         = LRUDOffsets;
+    }
+#endif
+
     if(depthCurr < depthPrev)
     {
         depthTestPassed = false;
-        discard;
+        if(edgeType != EdgeType::Edge_Intersection)
+        {
+            discard;
+        }
     }
 
   //  pixelInTriangle[4] =  !isConservativelyGenerated; //fill in center pixel
@@ -152,6 +198,10 @@ void main_ps(
     else if(edgeType == EdgeType::Edge_Discontinuity)
     {
         outputColor = float4(1.0, 1.0, 0.0, 1.0);
+    }
+    else if(edgeType == EdgeType::Edge_Intersection)
+    {
+        outputColor = float4(0.0, 1.0, 0.0, 1.0);
     }
 #endif
 
