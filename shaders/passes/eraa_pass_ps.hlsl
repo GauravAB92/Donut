@@ -21,7 +21,7 @@
 */
 
 #define USE_GS_ADJACENCY_DATA 1
-#define DEBUG_OFFSETS 1
+#define DEBUG_OFFSETS 0
 #define DETECT_IMPLICIT_EDGES 0
 
 #pragma pack_matrix(row_major)
@@ -210,7 +210,7 @@ void main_ps(
     
     if(occluding)
     {
-        #if 1
+        #if 0
 
             //outputColor *= float4(0.01, 0.01, 0.01, 0.01); //darken the pixel if it is occluding
 
@@ -242,7 +242,7 @@ void main_ps(
                     outputColor.w = 0.0f; 
                 }
             }
-        #elif 0
+        #elif 1
                 outputColor   = float4(0.0f,0.0f,0.0f,0.0f);
         #else
             if((prevDepths[3]  < currDepths[3] && pixelInTriangle[3]  )) // L

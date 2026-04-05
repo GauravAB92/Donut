@@ -828,46 +828,57 @@ void donut::engine::Scene::CreateMeshAdjacencyBuffers(nvrhi::ICommandList* comma
     for (const auto& mesh : m_SceneGraph->GetMeshes())
     {
         auto buffers = mesh->buffers;
-
-        if (!buffers)
+        if (!buffers || buffers->indexData.empty())
             continue;
-
         if (processed.count(buffers.get()))
             continue;
-
         processed.insert(buffers.get());
 
-        GenerateHalfEdgeData(buffers);
-        GenerateAdjacencyIndices(buffers);
+        // Build adjacency per-mesh, concatenate results
+        std::vector<uint32_t> allAdjIndices;
 
-		// Adjacency index buffer is only needed for eraa pass only 
-        if (!buffers->adjIndexData.empty() && !buffers->adjIndexBuffer)
+        for (const auto& innerMesh : m_SceneGraph->GetMeshes())
+        {
+            if (innerMesh->buffers.get() != buffers.get())
+                continue;
+            if (innerMesh->totalIndices == 0)
+                continue;
+
+            auto temp = std::make_shared<BufferGroup>();
+            temp->indexData = std::vector<uint32_t>(
+                buffers->indexData.begin() + innerMesh->indexOffset,
+                buffers->indexData.begin() + innerMesh->indexOffset + innerMesh->totalIndices);
+            temp->positionData = std::vector<dm::float3>(
+                buffers->positionData.begin() + innerMesh->vertexOffset,
+                buffers->positionData.begin() + innerMesh->vertexOffset + innerMesh->totalVertices);
+
+            GenerateHalfEdgeData(temp);
+            GenerateAdjacencyIndices(temp);
+
+            allAdjIndices.insert(allAdjIndices.end(),
+                temp->adjIndexData.begin(), temp->adjIndexData.end());
+        }
+
+        if (!allAdjIndices.empty())
         {
             nvrhi::BufferDesc bufferDesc;
             bufferDesc.isIndexBuffer = true;
-            bufferDesc.byteSize = buffers->adjIndexData.size() * sizeof(uint32_t);
+            bufferDesc.byteSize = allAdjIndices.size() * sizeof(uint32_t);
             bufferDesc.debugName = "AdjIndexBuffer";
             bufferDesc.canHaveTypedViews = true;
-            bufferDesc.canHaveRawViews = true;             
+            bufferDesc.canHaveRawViews = true;
             bufferDesc.format = nvrhi::Format::R32_UINT;
+
             buffers->adjIndexBuffer = m_Device->createBuffer(bufferDesc);
-
             commandList->beginTrackingBufferState(buffers->adjIndexBuffer, nvrhi::ResourceStates::Common);
-
-            commandList->writeBuffer(buffers->adjIndexBuffer, buffers->adjIndexData.data(), buffers->adjIndexData.size() * sizeof(uint32_t));
-           
-            std::vector<uint32_t>().swap(buffers->adjIndexData);
-            std::vector<HalfEdge>().swap(buffers->halfEdgesData);
-			std::vector<Face>().swap(buffers->facesData);
+            commandList->writeBuffer(buffers->adjIndexBuffer, allAdjIndices.data(), bufferDesc.byteSize);
 
             nvrhi::ResourceStates state = nvrhi::ResourceStates::IndexBuffer | nvrhi::ResourceStates::ShaderResource;
             commandList->setPermanentBufferState(buffers->adjIndexBuffer, state);
             commandList->commitBarriers();
         }
     }
-
 }
-
 void Scene::CreateMeshBuffers(nvrhi::ICommandList* commandList)
 {
     for (const auto& mesh : m_SceneGraph->GetMeshes())
@@ -1144,7 +1155,7 @@ void Scene::CreateMeshBuffers(nvrhi::ICommandList* commandList)
 
             skinnedInstance->skinningBindingSet = m_Device->createBindingSet(setDesc, m_SkinningBindingLayout);
         }
-    }
+    } 
 }
 
 nvrhi::BufferHandle Scene::CreateMaterialBuffer()

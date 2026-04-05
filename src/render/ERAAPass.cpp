@@ -135,13 +135,18 @@ nvrhi::ShaderHandle ERAAPass::CreateVertexShader(ShaderFactory& shaderFactory, c
 
 nvrhi::ShaderHandle ERAAPass::CreateGeometryShader(ShaderFactory& shaderFactory, const CreateParameters& params)
 {
+
+
+    std::vector<ShaderMacro> Macros;
+    Macros.push_back(ShaderMacro("USE_GS_ADJACENCY_DATA", params.showEdgeData ? "1" : "0"));
+
     if (params.gsAdjacencyMode)
     {
-        return shaderFactory.CreateAutoShader("donut/passes/eraa_pass_gs.hlsl", "main_gs0_adj", DONUT_MAKE_PLATFORM_SHADER(g_forward_gs_adj), nullptr, nvrhi::ShaderType::Geometry);
+        return shaderFactory.CreateAutoShader("donut/passes/eraa_pass_gs.hlsl", "main_gs_adj", DONUT_MAKE_PLATFORM_SHADER(g_forward_gs_adj), &Macros, nvrhi::ShaderType::Geometry);
     }
     else
     {
-        return shaderFactory.CreateAutoShader("donut/passes/eraa_pass_gs.hlsl", "main_gs0", DONUT_MAKE_PLATFORM_SHADER(g_forward_gs), nullptr, nvrhi::ShaderType::Geometry);
+        return shaderFactory.CreateAutoShader("donut/passes/eraa_pass_gs.hlsl", "main_gs", DONUT_MAKE_PLATFORM_SHADER(g_forward_gs), &Macros, nvrhi::ShaderType::Geometry);
     }
 
     return nullptr;
@@ -428,7 +433,7 @@ void ERAAPass::Resolve(nvrhi::ICommandList* commandList, const ResolveParams& pa
         psoDesc.renderState.rasterState.setCullNone();
         psoDesc.renderState.depthStencilState.depthTestEnable = false;
         psoDesc.renderState.depthStencilState.stencilEnable = false;
-        m_ResolvePipeline = m_Device->createGraphicsPipeline(psoDesc, params.targetFramebuffer);
+        m_ResolvePipeline = m_Device->createGraphicsPipeline(psoDesc, params.targetFramebuffer->getFramebufferInfo());
     }
 
     nvrhi::BindingSetDesc bindingSetDesc;

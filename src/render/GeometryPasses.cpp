@@ -227,7 +227,8 @@ void donut::render::RenderViewPerTriangle(
     nvrhi::ITexture* depthRead,
     nvrhi::ITexture* depthWrite,
     nvrhi::ITexture* extentRead,
-    nvrhi::ITexture* extentWrite)
+    nvrhi::ITexture* extentWrite,
+    bool useGSAdjacency)
 {
 
     drawStrategy.PrepareForView(rootNode, *view);
@@ -242,6 +243,9 @@ void donut::render::RenderViewPerTriangle(
     nvrhi::GraphicsState state;
     state.framebuffer = framebuffer;
     state.viewport = view->GetViewportState();
+
+    const uint32_t faceStride = useGSAdjacency ? 6 : 3;
+    const uint32_t indexScale = useGSAdjacency ? 2 : 1;
 
     while (const DrawItem* item = drawStrategy.GetNextItem())
     {
@@ -261,15 +265,15 @@ void donut::render::RenderViewPerTriangle(
             lastCullMode = item->cullMode;
         }
 
-        uint32_t baseIndex  = (item->mesh->indexOffset + item->geometry->indexOffsetInMesh) * 2;
+        uint32_t baseIndex = (item->mesh->indexOffset + item->geometry->indexOffsetInMesh) * indexScale;
         uint32_t baseVertex = item->mesh->vertexOffset + item->geometry->vertexOffsetInMesh;
 
-        for (uint32_t tri = 0; tri < item->geometry->numIndices * 2; tri += 6)
+        for (uint32_t tri = 0; tri < item->geometry->numIndices * indexScale; tri += faceStride)
         {
             commandList->setGraphicsState(state);
 
             nvrhi::DrawArguments args;
-            args.vertexCount = 6;
+            args.vertexCount = faceStride;
             args.instanceCount = 1;
             args.startIndexLocation = baseIndex + tri;
             args.startVertexLocation = baseVertex;
@@ -278,9 +282,9 @@ void donut::render::RenderViewPerTriangle(
             pass.SetPushConstants(passContext, commandList, state, args);
             commandList->drawIndexed(args);
 
-            // Copy write → read for next triangle
             commandList->copyTexture(depthRead, nvrhi::TextureSlice(), depthWrite, nvrhi::TextureSlice());
             commandList->copyTexture(extentRead, nvrhi::TextureSlice(), extentWrite, nvrhi::TextureSlice());
         }
     }
+
 }

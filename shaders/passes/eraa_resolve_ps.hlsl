@@ -11,7 +11,7 @@ void main_ps(
     int2 inputPixelPosition = int2(pos.xy);
     float4 data             = u_eraaOffsets[inputPixelPosition];
 
-#if (ERAA_SHOW_DETECTED_EDGES == 1)
+#if ERAA_SHOW_DETECTED_EDGES
     o_rgba = data;
 #else
     // Get dimensions of the textures

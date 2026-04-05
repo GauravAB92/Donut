@@ -368,6 +368,9 @@ namespace donut::engine
         uint32_t numVertices = 0;
         int globalGeometryIndex = 0;
 
+		std::vector<HalfEdge> halfEdges; // optional half-edge data for this geometry, used for adjacency information in meshlets and/or for mesh editing operations
+		std::vector<Face> faces; // optional face data for this geometry, used for adjacency information in meshlets and/or for mesh editing operations
+
         MeshGeometryPrimitiveType type = MeshGeometryPrimitiveType::Triangles;
 
         virtual ~MeshGeometry() = default;
