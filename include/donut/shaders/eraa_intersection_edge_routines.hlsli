@@ -37,7 +37,6 @@ void buildDepthDeltas(
         if(i == 4)
         {
             currDepths[i]   = pixelPosScreen.z;
-            currExtents[i]  = u_eraaExtentRead[samplePos];
         }
         else
         {

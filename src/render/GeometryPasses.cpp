@@ -239,6 +239,7 @@ void donut::render::RenderViewPerTriangle(
     const Material* lastMaterial = nullptr;
     const BufferGroup* lastBuffers = nullptr;
     nvrhi::RasterCullMode lastCullMode = nvrhi::RasterCullMode::Back;
+	const DrawItem* lastItem = nullptr;
 
     nvrhi::GraphicsState state;
     state.framebuffer = framebuffer;
@@ -246,6 +247,9 @@ void donut::render::RenderViewPerTriangle(
 
     const uint32_t faceStride = useGSAdjacency ? 6 : 3;
     const uint32_t indexScale = useGSAdjacency ? 2 : 1;
+
+	std::vector<const DrawItem*> drawItems;
+
 
     while (const DrawItem* item = drawStrategy.GetNextItem())
     {
@@ -263,6 +267,7 @@ void donut::render::RenderViewPerTriangle(
                 continue;
             lastMaterial = item->material;
             lastCullMode = item->cullMode;
+            lastItem     = item;
         }
 
         uint32_t baseIndex = (item->mesh->indexOffset + item->geometry->indexOffsetInMesh) * indexScale;
@@ -287,4 +292,27 @@ void donut::render::RenderViewPerTriangle(
         }
     }
 
+    {
+        uint32_t baseIndex = (lastItem->mesh->indexOffset + lastItem->geometry->indexOffsetInMesh) * indexScale;
+        uint32_t baseVertex = lastItem->mesh->vertexOffset + lastItem->geometry->vertexOffsetInMesh;
+
+        for (uint32_t tri = 0; tri < lastItem->geometry->numIndices * indexScale; tri += faceStride)
+        {
+            commandList->setGraphicsState(state);
+
+            nvrhi::DrawArguments args;
+            args.vertexCount = faceStride;
+            args.instanceCount = 1;
+            args.startIndexLocation = baseIndex + tri;
+            args.startVertexLocation = baseVertex;
+            args.startInstanceLocation = lastItem->instance->GetInstanceIndex();
+
+            pass.SetPushConstants(passContext, commandList, state, args);
+            commandList->drawIndexed(args);
+
+            commandList->copyTexture(depthRead, nvrhi::TextureSlice(), depthWrite, nvrhi::TextureSlice());
+            commandList->copyTexture(extentRead, nvrhi::TextureSlice(), extentWrite, nvrhi::TextureSlice());
+        }
+
+    }
 }

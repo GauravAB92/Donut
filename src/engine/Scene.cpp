@@ -606,9 +606,11 @@ void Scene::RefreshBuffers(nvrhi::ICommandList* commandList, uint32_t frameIndex
     bool materialsChanged = false;
 
     if (m_SceneStructureChanged)
-		CreateMeshAdjacencyBuffers(commandList);
+    {
+        CreateMeshAdjacencyBuffers(commandList);
         CreateMeshBuffers(commandList);
-
+    }
+		
     const size_t allocationGranularity = 1024;
     bool arraysAllocated = false;
 
@@ -833,17 +835,14 @@ void donut::engine::Scene::CreateMeshAdjacencyBuffers(nvrhi::ICommandList* comma
         if (processed.count(buffers.get()))
             continue;
         processed.insert(buffers.get());
-
         // Build adjacency per-mesh, concatenate results
         std::vector<uint32_t> allAdjIndices;
-
         for (const auto& innerMesh : m_SceneGraph->GetMeshes())
         {
             if (innerMesh->buffers.get() != buffers.get())
                 continue;
             if (innerMesh->totalIndices == 0)
                 continue;
-
             auto temp = std::make_shared<BufferGroup>();
             temp->indexData = std::vector<uint32_t>(
                 buffers->indexData.begin() + innerMesh->indexOffset,
@@ -851,14 +850,11 @@ void donut::engine::Scene::CreateMeshAdjacencyBuffers(nvrhi::ICommandList* comma
             temp->positionData = std::vector<dm::float3>(
                 buffers->positionData.begin() + innerMesh->vertexOffset,
                 buffers->positionData.begin() + innerMesh->vertexOffset + innerMesh->totalVertices);
-
             GenerateHalfEdgeData(temp);
             GenerateAdjacencyIndices(temp);
-
             allAdjIndices.insert(allAdjIndices.end(),
                 temp->adjIndexData.begin(), temp->adjIndexData.end());
         }
-
         if (!allAdjIndices.empty())
         {
             nvrhi::BufferDesc bufferDesc;
@@ -868,17 +864,18 @@ void donut::engine::Scene::CreateMeshAdjacencyBuffers(nvrhi::ICommandList* comma
             bufferDesc.canHaveTypedViews = true;
             bufferDesc.canHaveRawViews = true;
             bufferDesc.format = nvrhi::Format::R32_UINT;
-
             buffers->adjIndexBuffer = m_Device->createBuffer(bufferDesc);
             commandList->beginTrackingBufferState(buffers->adjIndexBuffer, nvrhi::ResourceStates::Common);
             commandList->writeBuffer(buffers->adjIndexBuffer, allAdjIndices.data(), bufferDesc.byteSize);
-
             nvrhi::ResourceStates state = nvrhi::ResourceStates::IndexBuffer | nvrhi::ResourceStates::ShaderResource;
             commandList->setPermanentBufferState(buffers->adjIndexBuffer, state);
             commandList->commitBarriers();
         }
     }
 }
+
+
+
 void Scene::CreateMeshBuffers(nvrhi::ICommandList* commandList)
 {
     for (const auto& mesh : m_SceneGraph->GetMeshes())
@@ -1157,6 +1154,9 @@ void Scene::CreateMeshBuffers(nvrhi::ICommandList* commandList)
         }
     } 
 }
+
+
+
 
 nvrhi::BufferHandle Scene::CreateMaterialBuffer()
 {

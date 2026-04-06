@@ -163,12 +163,23 @@ void main_ps(
     EdgeType edgeType = EdgeType::Edge_None;
     float4 outputColor = float4(0, 0, 0, 0);
 
-    currExtents[4] = extentCurr; //center pixel extent
-    evaluateExtentedDepth(depthCurr, extentCurr, extentMax);
+   
+    if(!isConservativelyGenerated)
+    {
+        //These won't work for conservative
+        evaluateExtentedDepth(depthCurr, extentCurr, extentMax);
+        currExtents[4] = extentCurr; //center pixel extent
+        buildDepthDeltas(posScreen.xyz, currDepths, prevDepths, depthDiffs, currExtents, extentFramebuffer);
+    }
+    else
+    {
+       extentCurr = depthCurr;
+    }
+    
+
     detectExplicitEdges(posScreen, Input, isConservativelyGenerated, barycentrics, edgeType, outputColor);
     inclusionTest(Input.posScreenSpace, posScreen.xy, pixelInTriangle);
-    buildDepthDeltas(posScreen.xyz, currDepths, prevDepths, depthDiffs, currExtents, extentFramebuffer);
-
+ 
 #if DETECT_IMPLICIT_EDGES
 
     if(detectImplicitEdges(posScreen.xy,currDepths, prevDepths, depthDiffs, extentFramebuffer, pixelInTriangle,
@@ -179,7 +190,7 @@ void main_ps(
     }
 #endif
 
-    if(depthCurr < depthPrev)
+    if((depthCurr < depthPrev) )
     {
         depthTestPassed = false;
         if(edgeType != EdgeType::Edge_Intersection)
@@ -188,7 +199,7 @@ void main_ps(
         }
     }
 
-  //  pixelInTriangle[4] =  !isConservativelyGenerated; //fill in center pixel
+   pixelInTriangle[4] =  !isConservativelyGenerated; //fill in center pixel
 
 #if DEBUG_OFFSETS
     if(edgeType == EdgeType::Edge_Silhouette)
@@ -200,20 +211,20 @@ void main_ps(
         outputColor = float4(1.0, 1.0, 0.0, 1.0);
     }
     else if(edgeType == EdgeType::Edge_Intersection)
-    {
+    {             
         outputColor = float4(0.0, 1.0, 0.0, 1.0);
     }
 #endif
 
-    outputColor                           = max(outputColor, LRUDOffsetsFB);
-    bool occluding                        = (extentCurr > extentPrev) && (edgeType == EdgeType::Edge_None) && pixelInTriangle[4] ; //center pixel depth vs extent from previous frame 
+
+    bool coplanar   = (abs(extentCurr - depthCurr) < 1e-6f) &&  !pixelInTriangle[4]; //treat as coplanar if extent and depth are very close. This can happen for grazing silhouettes or intersection edges with very small edge length
+
+    outputColor                              = max(outputColor, LRUDOffsetsFB); //combine explicit edge offsets with implicit edge offsets from framebuffer
+    bool occluding                           = (extentCurr > extentPrev)  && (edgeType == EdgeType::Edge_None) && pixelInTriangle[4]; //center pixel depth vs extent from previous frame 
     
-    if(occluding)
+    if(occluding && !coplanar)
     {
         #if 0
-
-            //outputColor *= float4(0.01, 0.01, 0.01, 0.01); //darken the pixel if it is occluding
-
             if(((prevDepths[3]  < currDepths[3])    && pixelInTriangle[3])) // L
             {
                 if(pixelInTriangle[1] && pixelInTriangle[7])
@@ -225,54 +236,55 @@ void main_ps(
             {
                 if(pixelInTriangle[1] && pixelInTriangle[7])
                 {
-                    outputColor.y = 0.0f; 
+                    outputColor.y =  0.0f; 
                 }
             }
             if((prevDepths[1]  < currDepths[1])     && pixelInTriangle[1]) // U
             {
                 if(pixelInTriangle[3] && pixelInTriangle[5])
                 {
-                    outputColor.z = 0.0f;
+                    outputColor.z =  0.0f;
                 }
             }
             if((prevDepths[7]  < currDepths[7])     && pixelInTriangle[7]) // D
             {
                 if(pixelInTriangle[3] && pixelInTriangle[5])
                 {
-                    outputColor.w = 0.0f; 
+                    outputColor.w =  0.0f; 
                 }
             }
         #elif 1
-                outputColor   = float4(0.0f,0.0f,0.0f,0.0f);
+                outputColor = float4(0.0f, 0.0f, 0.0f, 0.0f); //occluding, reset all offsets
         #else
-            if((prevDepths[3]  < currDepths[3] && pixelInTriangle[3]  )) // L
+            if((prevDepths[3]  < currDepths[3]) && pixelInTriangle[3]) // L
             {
-                outputColor.x = 0.0f; //right offset is occluded, reset it
+                outputColor.x =  0.0f; //right offset is occluded, reset it
             } 
-            if((prevDepths[5]  < currDepths[5]) && pixelInTriangle[5]     ) // R
+            if((prevDepths[5]  < currDepths[5]) && pixelInTriangle[5]  ) // R
             {
-                outputColor.y = 0.0f; //down offset is occluded, reset it
+                outputColor.y =  0.0f; //down offset is occluded, reset it
             }
-            if((prevDepths[1]  < currDepths[1]) && pixelInTriangle[1]     ) // U
+            if((prevDepths[1]  < currDepths[1])  && pixelInTriangle[1] ) // U
             {
-                outputColor.z = 0.0f; //left offset is occluded, reset it
+                outputColor.z =  0.0f; //left offset is occluded, reset it
             }
-            if((prevDepths[7]  < currDepths[7]) && pixelInTriangle[7]     ) // D
+            if((prevDepths[7]  < currDepths[7])  && pixelInTriangle[7] ) // D
             {
-                outputColor.w = 0.0f; //up offset is occluded, reset it
+                outputColor.w =  0.0f; //up offset is occluded, reset it
             }
         #endif
     }
 
     // Set depth and extent outputs 
     // If intersection edge found then don't update depth and extent
-    if(depthTestPassed)
+    
+    if(depthTestPassed && (!isConservativelyGenerated))
     {
-        u_eraaDepthWrite[pixelCoord]              =  isConservativelyGenerated           ? depthPrev         : depthCurr;
-        u_eraaExtentWrite[pixelCoord]             =  isConservativelyGenerated           ? extentPrev        : extentCurr;
+        u_eraaDepthWrite[pixelCoord]                =  depthCurr;
+        u_eraaExtentWrite[pixelCoord]                   =  extentCurr;
     }
-
-    u_eraaOffsets[pixelCoord]                     =  outputColor;
+    
+    u_eraaOffsets[pixelCoord]                       =  outputColor;
 
    // o_color = outputColor;
 }

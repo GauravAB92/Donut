@@ -10,7 +10,7 @@ bool detectSilhouetteEdgeVS_GSADJ(float3 surfaceNormalVS, float3 adjacentFaceNor
     float d1 = dot(adjacentFaceNormalVS, viewVector);
     
     bool silhouette = (d0 * d1 <= 0.0f);
-    bool grazing = (min(abs(d0), abs(d1)) < 0.05f);
+    bool grazing = (min(abs(d0), abs(d1)) < 0.1f);
     
     float edgeness = 1.0 - abs(d0);
     
