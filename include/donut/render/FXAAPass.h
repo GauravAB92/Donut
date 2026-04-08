@@ -43,6 +43,8 @@ namespace donut::render
 
 		nvrhi::DeviceHandle							m_Device;
 
+		dm::float2 m_inverseScreenSize = dm::float2(0.0f, 0.0f);
+
 
 	public:
 

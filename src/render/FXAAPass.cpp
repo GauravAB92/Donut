@@ -118,19 +118,24 @@ void FXAAPass::Resolve(nvrhi::ICommandList* commandList, const engine::IComposit
 		m_ResolvedColorSize.x = unresolvedColor->getDesc().width;
 		m_ResolvedColorSize.y = unresolvedColor->getDesc().height;
 
+		if (m_inverseScreenSize.x == 0.0 || m_inverseScreenSize.y == 0.0)
+		{
+			m_inverseScreenSize = float2(1.0f / m_ResolvedColorSize.x, 1.0 / m_ResolvedColorSize.y);
+		}
+
 		BlitConstants blitConstants;
 
 		blitConstants.sourceOrigin = float2(0.0f, 0.0f);
-		blitConstants.sourceSize = float2(1,1);
+		blitConstants.sourceSize = float2(1.0f,1.0f);
 		blitConstants.targetOrigin = float2(0.0f, 0);
-		blitConstants.targetSize = float2(1,1);
+		blitConstants.targetSize = float2(1.0f,1.0f);
 		blitConstants.sharpenFactor = 0.0f;
 
 		FXAAConstantsAligned fxaaConstants;
 
 		fxaaConstants.base = blitConstants;
 
-		fxaaConstants.inverseScreenSize = float2(1.0f / m_ResolvedColorSize.x, 1.0f / m_ResolvedColorSize.y);
+		fxaaConstants.inverseScreenSize = m_inverseScreenSize;
 
 		commandList->writeBuffer(m_ConstantBuffer, &fxaaConstants, sizeof(fxaaConstants));
 

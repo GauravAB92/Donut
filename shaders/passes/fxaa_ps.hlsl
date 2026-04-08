@@ -1,6 +1,6 @@
 #define FXAA_PC 1
 #define FXAA_HLSL_5 1
-#define FXAA_QUALITY_PRESET 12
+#define FXAA_QUALITY_PRESET 39
 #define FXAA_GREEN_AS_LUMA 0
 
 #include <donut/shaders/blit_cb.h>
@@ -38,7 +38,7 @@ float4 FXAA_PS(
         float4(0,0,0,0),            // fxaaConsoleRcpFrameOpt  — unused (PC)
         float4(0,0,0,0),            // fxaaConsoleRcpFrameOpt2 — unused (PC)
         float4(0,0,0,0),            // fxaaConsole360RcpFrameOpt2 — unused (PC)
-        1.0f,                      // fxaaQualitySubpix       — 0.75 default
+        1.00f,                      // fxaaQualitySubpix       — 0.75 default
         0.125f,                     // fxaaQualityEdgeThreshold — 0.166 default
         0.0625f,                    // fxaaQualityEdgeThresholdMin — 0.0833 default
         0.0f,                       // fxaaConsoleEdgeSharpness — unused (PC)

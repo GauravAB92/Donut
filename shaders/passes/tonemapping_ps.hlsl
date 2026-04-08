@@ -51,7 +51,9 @@ float3 ConvertToLDR(float3 color)
     if (srcLuminance <= 0)
         return 0;
 
-    float adaptedLuminance = asfloat(t_Exposure[0]);
+    //float adaptedLuminance = asfloat(t_Exposure[0]);
+    float adaptedLuminance = 0.05;
+
     if (adaptedLuminance <= 0)
         adaptedLuminance = g_ToneMapping.minAdaptedLuminance;
 
@@ -93,7 +95,7 @@ void main(
     float4 HdrColor = t_Source[pos.xy];
 #endif
     o_rgba.rgb = ConvertToLDR(HdrColor.rgb);
-    o_rgba.a = HdrColor.a;
+    o_rgba.a = Luminance(o_rgba);
 
     if (g_ToneMapping.colorLUTTextureSize.x > 0)
     {
