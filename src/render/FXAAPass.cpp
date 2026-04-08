@@ -53,6 +53,7 @@ FXAAPass::FXAAPass(nvrhi::IDevice* device,
 	std::vector<ShaderMacro> Macros;
 
 	Macros.push_back(ShaderMacro("FXAA_DEBUG_EDGES", debugEdges ? "1" : "0"));
+	m_VertexShader = shaderFactory->CreateAutoShader("donut/fxaa_rect_vs.hlsl", "main", DONUT_MAKE_PLATFORM_SHADER(g_fxaa_vs), nullptr, nvrhi::ShaderType::Vertex);
 	m_PixelShader = shaderFactory->CreateAutoShader("donut/passes/fxaa_ps.hlsl", "FXAA_PS", DONUT_MAKE_PLATFORM_SHADER(g_fxaa_ps), &Macros, nvrhi::ShaderType::Pixel);
 
 	//Create bilinear sampler
@@ -62,13 +63,13 @@ FXAAPass::FXAAPass(nvrhi::IDevice* device,
 
 	samplerDesc.minFilter = true; // Enables Linear Minification
 	samplerDesc.magFilter = true; // Enables Linear Magnification
-	samplerDesc.mipFilter = true; // Enables Linear Mip-Sensing
+	samplerDesc.mipFilter = false; // Enables Linear Mip-Sensing
 
 	m_BilinearSampler = m_Device->createSampler(samplerDesc);
 
 	//PSO
 	nvrhi::GraphicsPipelineDesc pipelineDesc;
-	pipelineDesc.VS = commonPasses->m_RectVS;
+	pipelineDesc.VS = m_VertexShader;
 	pipelineDesc.PS = m_PixelShader;
 	pipelineDesc.bindingLayouts = { m_bindingLayout };
 	pipelineDesc.primType = nvrhi::PrimitiveType::TriangleStrip;
@@ -119,10 +120,10 @@ void FXAAPass::Resolve(nvrhi::ICommandList* commandList, const engine::IComposit
 
 		BlitConstants blitConstants;
 
-		blitConstants.sourceOrigin = float2(0.5 * (1.0f / m_ResolvedColorSize.x), 0.25 * (1.0f / m_ResolvedColorSize.y));
-		blitConstants.sourceSize = m_ResolvedColorSize;
-		blitConstants.targetOrigin = float2(0, 0);
-		blitConstants.targetSize = m_ResolvedColorSize;
+		blitConstants.sourceOrigin = float2(0.0f, 0.0f);
+		blitConstants.sourceSize = float2(1,1);
+		blitConstants.targetOrigin = float2(0.0f, 0);
+		blitConstants.targetSize = float2(1,1);
 		blitConstants.sharpenFactor = 0.0f;
 
 		FXAAConstantsAligned fxaaConstants;

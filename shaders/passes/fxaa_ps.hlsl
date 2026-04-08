@@ -1,25 +1,23 @@
 #define FXAA_PC 1
 #define FXAA_HLSL_5 1
 #define FXAA_QUALITY_PRESET 12
-#define FXAA_GREEN_AS_LUMA 1
+#define FXAA_GREEN_AS_LUMA 0
 
+#include <donut/shaders/blit_cb.h>
 #include <donut/shaders/FXAA3_11.hlsli>
 
 Texture2D    input_color  : register(t0);
 SamplerState linearSampler : register(s0);
 
-struct BlitConstants
+struct FXAAConstants
 {
-	float2 sourceOrigin;  // Origin in source texture coordinates
-	float2 sourceSize;    // Size in source texture coordinates
-	float2 targetOrigin;  // Origin in target texture coordinates
-	float2 targetSize;    // Size in target texture coordinates
+    BlitConstants base;
+    float2 inverseScreenSize;
 };
 
 cbuffer FXAAConstantsBuffer : register(b0)
 {
-	BlitConstants g_Blit;
-    float2 inverseScreenSize;
+    FXAAConstants fxaaConst;
 };
 
 float4 FXAA_PS(
@@ -36,7 +34,7 @@ float4 FXAA_PS(
         fxaaTex,                    // tex
         fxaaTex,                    // fxaaConsole360TexExpBiasNegOne — unused
         fxaaTex,                    // fxaaConsole360TexExpBiasNegTwo — unused
-        inverseScreenSize,          // fxaaQualityRcpFrame    — (1/w, 1/h)
+        fxaaConst.inverseScreenSize,          // fxaaQualityRcpFrame    — (1/w, 1/h)
         float4(0,0,0,0),            // fxaaConsoleRcpFrameOpt  — unused (PC)
         float4(0,0,0,0),            // fxaaConsoleRcpFrameOpt2 — unused (PC)
         float4(0,0,0,0),            // fxaaConsole360RcpFrameOpt2 — unused (PC)

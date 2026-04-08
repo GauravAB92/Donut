@@ -51,6 +51,7 @@ set(byproducts
 	rect_vs
 	sharpen_ps
 	skinning_cs
+	fxaa_rect_vs
 	passes/bloom_ps
 	passes/cubemap_gs
 	passes/deferred_lighting_cs
