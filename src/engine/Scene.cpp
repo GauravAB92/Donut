@@ -827,6 +827,7 @@ void donut::engine::Scene::CreateMeshAdjacencyBuffers(nvrhi::ICommandList* comma
 {
     std::unordered_set<BufferGroup*> processed;
 
+
     for (const auto& mesh : m_SceneGraph->GetMeshes())
     {
         auto buffers = mesh->buffers;
@@ -835,10 +836,34 @@ void donut::engine::Scene::CreateMeshAdjacencyBuffers(nvrhi::ICommandList* comma
         if (processed.count(buffers.get()))
             continue;
         processed.insert(buffers.get());
-        // Build adjacency per-mesh, concatenate results
-        std::vector<uint32_t> allAdjIndices;
+
+        // Sort sub-meshes by their position in the flat buffer
+        std::vector<std::shared_ptr<MeshInfo>> subMeshes;
         for (const auto& innerMesh : m_SceneGraph->GetMeshes())
         {
+            if (innerMesh->buffers.get() != buffers.get())
+                continue;
+            if (innerMesh->totalIndices == 0)
+                continue;
+            subMeshes.push_back(innerMesh);
+        }
+        std::sort(subMeshes.begin(), subMeshes.end(),
+            [](const auto& a, const auto& b) {
+                return a->indexOffset < b->indexOffset;
+            });
+
+        // Build adjacency per-mesh, concatenate results
+        std::vector<uint32_t> allAdjIndices;
+        for (const auto& innerMesh : subMeshes)
+        {
+            // Indices should be in [vertexOffset, vertexOffset + totalVertices)
+            for (uint32_t i = innerMesh->indexOffset;
+                i < innerMesh->indexOffset + innerMesh->totalIndices; ++i)
+            {
+                assert(buffers->indexData[i] >= innerMesh->vertexOffset);
+                assert(buffers->indexData[i] < innerMesh->vertexOffset + innerMesh->totalVertices);
+            }
+
             if (innerMesh->buffers.get() != buffers.get())
                 continue;
             if (innerMesh->totalIndices == 0)
