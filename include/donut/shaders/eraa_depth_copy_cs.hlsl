@@ -24,8 +24,6 @@ void main_cs(
     }
  
     u_ERAADepthReadTexture[p] = u_ERAADepthWriteTexture.Load(int3(p.x, p.y, 0)); // Copy depth value from the depth texture
-
     u_ERAAExtentReadTexture[p] = u_ERAAExtentWriteTexture.Load(int3(p.x, p.y, 0)); // Copy extent value if valid, otherwise set to 0
-
 }
  

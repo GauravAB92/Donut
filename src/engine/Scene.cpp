@@ -855,6 +855,7 @@ void donut::engine::Scene::CreateMeshAdjacencyBuffers(nvrhi::ICommandList* comma
             allAdjIndices.insert(allAdjIndices.end(),
                 temp->adjIndexData.begin(), temp->adjIndexData.end());
         }
+
         if (!allAdjIndices.empty())
         {
             nvrhi::BufferDesc bufferDesc;
@@ -873,8 +874,6 @@ void donut::engine::Scene::CreateMeshAdjacencyBuffers(nvrhi::ICommandList* comma
         }
     }
 }
-
-
 
 void Scene::CreateMeshBuffers(nvrhi::ICommandList* commandList)
 {

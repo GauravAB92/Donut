@@ -112,7 +112,7 @@ void ERAAPass::Init(ShaderFactory& shaderFactory, const CreateParameters& params
         layoutDesc.bindings = {
             nvrhi::BindingLayoutItem::PushConstants(0, sizeof(BlitConstants)),
             nvrhi::BindingLayoutItem::Texture_SRV(0),
-            nvrhi::BindingLayoutItem::Texture_UAV(1),
+            nvrhi::BindingLayoutItem::Texture_SRV(1),
         };
 
         m_ResolveBindingLayout = m_Device->createBindingLayout(layoutDesc);
@@ -204,20 +204,22 @@ nvrhi::BindingLayoutHandle ERAAPass::CreateShadingBindingLayout()
         .addItem(nvrhi::BindingLayoutItem::Texture_UAV(2))
         .addItem(nvrhi::BindingLayoutItem::Texture_UAV(3))
         .addItem(nvrhi::BindingLayoutItem::Texture_UAV(4))
-        .addItem(nvrhi::BindingLayoutItem::Texture_UAV(5));
+        .addItem(nvrhi::BindingLayoutItem::Texture_UAV(5))
+        .addItem(nvrhi::BindingLayoutItem::Texture_UAV(6));
 
     return m_Device->createBindingLayout(bindingLayoutDesc);
 }
 
-void ERAAPass::CreateShadingBindingSet(nvrhi::ITexture* eraaOffsets, nvrhi::ITexture* depthReadTexture, nvrhi::ITexture* depthWriteTexture, nvrhi::ITexture* eraaReadTexture, nvrhi::ITexture* eraaWriteTexture)
+void ERAAPass::CreateShadingBindingSet(nvrhi::ITexture* eraaReadOffsets, nvrhi::ITexture* eraaWriteOffsets, nvrhi::ITexture* depthReadTexture, nvrhi::ITexture* depthWriteTexture, nvrhi::ITexture* eraaReadTexture, nvrhi::ITexture* eraaWriteTexture)
 {
     auto bindingSetDesc = nvrhi::BindingSetDesc()
         .setTrackLiveness(m_TrackLiveness)
-        .addItem(nvrhi::BindingSetItem::Texture_UAV(1, eraaOffsets))
+        .addItem(nvrhi::BindingSetItem::Texture_UAV(1, eraaReadOffsets))
         .addItem(nvrhi::BindingSetItem::Texture_UAV(2, depthReadTexture))
         .addItem(nvrhi::BindingSetItem::Texture_UAV(3, depthWriteTexture))
         .addItem(nvrhi::BindingSetItem::Texture_UAV(4, eraaReadTexture))
-        .addItem(nvrhi::BindingSetItem::Texture_UAV(5, eraaWriteTexture));
+        .addItem(nvrhi::BindingSetItem::Texture_UAV(5, eraaWriteTexture))
+        .addItem(nvrhi::BindingSetItem::Texture_UAV(6, eraaWriteOffsets));
 
     m_ShaderBindingSet =  m_Device->createBindingSet(bindingSetDesc, m_ShadingBindingLayout);
 }
@@ -439,13 +441,13 @@ void ERAAPass::Resolve(nvrhi::ICommandList* commandList, const ResolveParams& pa
     nvrhi::BindingSetDesc bindingSetDesc;
     {
         auto sourceDimension = sourceDesc.dimension;
-
         auto sourceSubresources = nvrhi::TextureSubresourceSet(params.sourceMip, 1, params.sourceArraySlice, 1);
 
-        bindingSetDesc.bindings = {
+        bindingSetDesc.bindings = 
+        {
             nvrhi::BindingSetItem::PushConstants(0, sizeof(BlitConstants)),
             nvrhi::BindingSetItem::Texture_SRV(0, params.unResolvedTexture,  params.unResolvedTextureFormat, sourceSubresources,  nvrhi::TextureDimension::Texture2D),
-            nvrhi::BindingSetItem::Texture_UAV(1, params.eraaOffsetsTexture, params.eraaOffsetsTextureFormat, sourceSubresources,  nvrhi::TextureDimension::Texture2D),
+            nvrhi::BindingSetItem::Texture_SRV(1, params.eraaOffsetsTexture, params.eraaOffsetsTextureFormat, sourceSubresources,  nvrhi::TextureDimension::Texture2D)
         };
     }
 

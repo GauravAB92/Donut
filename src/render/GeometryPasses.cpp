@@ -228,13 +228,15 @@ void donut::render::RenderViewPerTriangle(
     nvrhi::ITexture* depthWrite,
     nvrhi::ITexture* extentRead,
     nvrhi::ITexture* extentWrite,
+    nvrhi::ITexture* offsetsRead,
+    nvrhi::ITexture* offsetsWrite,
+
     bool useGSAdjacency)
 {
 
     drawStrategy.PrepareForView(rootNode, *view);
     pass.SetupView(passContext, commandList, view, nullptr);
     nvrhi::IFramebuffer* framebuffer = framebufferFactory.GetFramebuffer(*view);
-
 
     const Material* lastMaterial = nullptr;
     const BufferGroup* lastBuffers = nullptr;
@@ -289,30 +291,7 @@ void donut::render::RenderViewPerTriangle(
 
             commandList->copyTexture(depthRead, nvrhi::TextureSlice(), depthWrite, nvrhi::TextureSlice());
             commandList->copyTexture(extentRead, nvrhi::TextureSlice(), extentWrite, nvrhi::TextureSlice());
+			commandList->copyTexture(offsetsRead, nvrhi::TextureSlice(), offsetsWrite, nvrhi::TextureSlice());
         }
-    }
-
-    {
-        uint32_t baseIndex = (lastItem->mesh->indexOffset + lastItem->geometry->indexOffsetInMesh) * indexScale;
-        uint32_t baseVertex = lastItem->mesh->vertexOffset + lastItem->geometry->vertexOffsetInMesh;
-
-        for (uint32_t tri = 0; tri < lastItem->geometry->numIndices * indexScale; tri += faceStride)
-        {
-            commandList->setGraphicsState(state);
-
-            nvrhi::DrawArguments args;
-            args.vertexCount = faceStride;
-            args.instanceCount = 1;
-            args.startIndexLocation = baseIndex + tri;
-            args.startVertexLocation = baseVertex;
-            args.startInstanceLocation = lastItem->instance->GetInstanceIndex();
-
-            pass.SetPushConstants(passContext, commandList, state, args);
-            commandList->drawIndexed(args);
-
-            commandList->copyTexture(depthRead, nvrhi::TextureSlice(), depthWrite, nvrhi::TextureSlice());
-            commandList->copyTexture(extentRead, nvrhi::TextureSlice(), extentWrite, nvrhi::TextureSlice());
-        }
-
     }
 }

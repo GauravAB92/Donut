@@ -1,6 +1,6 @@
 
-Texture2D<float4>   t_Src         : register(t0);
-RWTexture2D<float4> u_eraaOffsets : register(u1);
+Texture2D<float4>   t_Src           : register(t0);
+Texture2D<float4> u_eraaOffsets     : register(t1);
 
 void main_ps(
 	in float4   pos   : SV_Position,

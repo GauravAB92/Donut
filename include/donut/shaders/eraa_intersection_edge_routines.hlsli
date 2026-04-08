@@ -378,3 +378,5 @@ bool buildIntersectionEdge(
 
     return edgeFound;
 }
+
+

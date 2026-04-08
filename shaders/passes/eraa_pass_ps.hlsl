@@ -143,13 +143,13 @@ void main_ps(
 
     bool   isConservativelyGenerated    = (barycentrics.x < 0.0 || barycentrics.y < 0.0 || barycentrics.z < 0.0);
     bool   depthTestPassed              = true;
-    uint2  pixelCoord                   = uint2(posScreen.xy);
+    int2   pixelCoord                   = int2(posScreen.xy);
     float  depthCurr                    = posScreen.z;
     float  extentCurr                   = posScreen.z;
     float  extentMax                    = posScreen.z;
 
-    float4 LRUDOffsetsFB    = u_eraaOffsets[pixelCoord];
-    float  depthPrev        = u_eraaDepthRead[pixelCoord];
+    float4 LRUDOffsetsFB    = u_eraaReadOffsets[pixelCoord];
+    float  depthPrev        = u_eraaDepthRead[pixelCoord] * 0.9f;
     float  extentPrev       = u_eraaExtentRead[pixelCoord];
 
     float currDepths        [9]       = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0, 0.0, 0.0, 0.0 };
@@ -163,25 +163,23 @@ void main_ps(
     EdgeType edgeType = EdgeType::Edge_None;
     float4 outputColor = float4(0, 0, 0, 0);
 
-   
-    if(!isConservativelyGenerated)
-    {
+    //if(!isConservativelyGenerated)
+   // {
+    
         //These won't work for conservative
         evaluateExtentedDepth(depthCurr, extentCurr, extentMax);
         currExtents[4] = extentCurr; //center pixel extent
         buildDepthDeltas(posScreen.xyz, currDepths, prevDepths, depthDiffs, currExtents, extentFramebuffer);
-    }
-    else
-    {
-       extentCurr = depthCurr;
-    }
+    // }
+    // else
+    // {
+    //    extentCurr = depthCurr;
+    // }
     
-
     detectExplicitEdges(posScreen, Input, isConservativelyGenerated, barycentrics, edgeType, outputColor);
     inclusionTest(Input.posScreenSpace, posScreen.xy, pixelInTriangle);
  
 #if DETECT_IMPLICIT_EDGES
-
     if(detectImplicitEdges(posScreen.xy,currDepths, prevDepths, depthDiffs, extentFramebuffer, pixelInTriangle,
      extentMax, extentPrev, outputColor))
     { 
@@ -216,78 +214,69 @@ void main_ps(
     }
 #endif
 
+    float threshold = 1e-2f;
 
-    bool coplanar   = (abs(extentCurr - depthCurr) < 1e-6f) &&  !pixelInTriangle[4]; //treat as coplanar if extent and depth are very close. This can happen for grazing silhouettes or intersection edges with very small edge length
-
-    outputColor                              = max(outputColor, LRUDOffsetsFB); //combine explicit edge offsets with implicit edge offsets from framebuffer
-    bool occluding                           = (extentCurr > extentPrev)  && (edgeType == EdgeType::Edge_None) && pixelInTriangle[4]; //center pixel depth vs extent from previous frame 
-    
-    if(occluding && !coplanar)
+    if((abs(extentCurr - depthCurr)) > threshold)
     {
-        #if 0
-            if(((prevDepths[3]  < currDepths[3])    && pixelInTriangle[3])) // L
-            {
-                if(pixelInTriangle[1] && pixelInTriangle[7])
-                {
-                    outputColor.x = 0.0f; 
-                }
-            } 
-            if((prevDepths[5]  < currDepths[5])     && pixelInTriangle[5]) // R
-            {
-                if(pixelInTriangle[1] && pixelInTriangle[7])
-                {
-                    outputColor.y =  0.0f; 
-                }
-            }
-            if((prevDepths[1]  < currDepths[1])     && pixelInTriangle[1]) // U
-            {
-                if(pixelInTriangle[3] && pixelInTriangle[5])
-                {
-                    outputColor.z =  0.0f;
-                }
-            }
-            if((prevDepths[7]  < currDepths[7])     && pixelInTriangle[7]) // D
-            {
-                if(pixelInTriangle[3] && pixelInTriangle[5])
-                {
-                    outputColor.w =  0.0f; 
-                }
-            }
-        #elif 1
-                outputColor = float4(0.0f, 0.0f, 0.0f, 0.0f); //occluding, reset all offsets
-        #else
-            if((prevDepths[3]  < currDepths[3]) && pixelInTriangle[3]) // L
-            {
-                outputColor.x =  0.0f; //right offset is occluded, reset it
-            } 
-            if((prevDepths[5]  < currDepths[5]) && pixelInTriangle[5]  ) // R
-            {
-                outputColor.y =  0.0f; //down offset is occluded, reset it
-            }
-            if((prevDepths[1]  < currDepths[1])  && pixelInTriangle[1] ) // U
-            {
-                outputColor.z =  0.0f; //left offset is occluded, reset it
-            }
-            if((prevDepths[7]  < currDepths[7])  && pixelInTriangle[7] ) // D
-            {
-                outputColor.w =  0.0f; //up offset is occluded, reset it
-            }
-        #endif
+        extentCurr = depthCurr + 0.1f; //clamp extent to be close to depth to avoid large offsets for non-intersection edges due to noise in extent calculation
     }
 
-    // Set depth and extent outputs 
+    float4 prevOffsets                      = LRUDOffsetsFB;
+    float4 currentOutputColor               = float4(0.0, 0.0, 0.0, 0.0);
+    bool   occluding                        = (extentCurr > extentPrev) && pixelInTriangle[4]; //center pixel depth vs extent from previous frame 
+ 
+    if(occluding && (edgeType != EdgeType::Edge_None))
+    {
+        if(outputColor.r > 0.0f)        //Left offset added
+        {
+            //remove previous right offset from left neighbor
+            int2 neighborPixelCoord = pixelCoord + pixelIdOffsets[3]; //left neighbor
+            u_eraaWriteOffsets[neighborPixelCoord].g = 0.0f;
+            prevOffsets.r = 0.0f;
+        }
+
+        if(outputColor.g > 0.0f)        //Right offset added
+        {
+            //remove previous left offset from right neighbor
+            int2 neighborPixelCoord = pixelCoord + pixelIdOffsets[5]; //right neighbor
+            u_eraaWriteOffsets[neighborPixelCoord].r = 0.0f;
+            prevOffsets.g = 0.0f;
+        }
+
+        if(outputColor.b > 0.0f)        //Up offset added
+        {
+            //remove previous down offset from up neighbor
+            int2 neighborPixelCoord = pixelCoord + pixelIdOffsets[1]; //up neighbor
+            u_eraaWriteOffsets[neighborPixelCoord].a = 0.0f;
+            prevOffsets.b = 0.0f;
+        }
+        
+        if(outputColor.a > 0.0f)        //Down offset added
+        {
+            //remove previous up offset from down neighbor
+            int2 neighborPixelCoord = pixelCoord + pixelIdOffsets[7]; //down neighbor
+            u_eraaWriteOffsets[neighborPixelCoord].b = 0.0f;
+            prevOffsets.a = 0.0f;
+        }
+        currentOutputColor = max(outputColor, prevOffsets);
+    }
+    else if(occluding && (edgeType == EdgeType::Edge_None))
+    {
+        currentOutputColor = float4(0.0f, 0.0f, 0.0f, 0.0f); //not occluding so no offsets
+    }
+    else
+    {
+       currentOutputColor = max(LRUDOffsetsFB, outputColor); //not occluding but still an edge so keep offsets
+    }
+
+    // Set depth and extent outputs
     // If intersection edge found then don't update depth and extent
-    
     if(depthTestPassed && (!isConservativelyGenerated))
     {
-        u_eraaDepthWrite[pixelCoord]                =  depthCurr;
+        u_eraaDepthWrite[pixelCoord]                    =  depthCurr;
         u_eraaExtentWrite[pixelCoord]                   =  extentCurr;
     }
     
-    u_eraaOffsets[pixelCoord]                       =  outputColor;
-
+    u_eraaWriteOffsets[pixelCoord]                      =  currentOutputColor;
    // o_color = outputColor;
 }
-
-
-

@@ -107,7 +107,7 @@ float sphIntersect( in float3 ro, in float3 rd, in float3 ce, float ra )
 float intersectFitSphere(float3 posVS, float3 triangleVerticesVS[3], float3 vertexNormals[3], float4x4 projectionMatrix)
 {
     float  max_r = 0.0f;
-    float3 c = float3(0.0f, 0.0f, 0.0f);
+    float3 c     = float3(0.0f, 0.0f, 0.0f);
 
     for(int i = 0; i < 3; ++i)
     {
@@ -115,8 +115,8 @@ float intersectFitSphere(float3 posVS, float3 triangleVerticesVS[3], float3 vert
         float3 v2 = triangleVerticesVS[i] - triangleVerticesVS[(i + 1) % 3];
         float3 v3 = triangleVerticesVS[i] - triangleVerticesVS[(i + 2) % 3];
 
-        float numerator = dot(v3, v3) - dot(v2, v2);
-        float denominator = 2.0f * dot(n, v3 - v2);
+        float numerator     = dot(v3, v3) - dot(v2, v2);
+        float denominator   = 2.0f * dot(n, v3 - v2);
 
         // Avoid division by zero
         if (abs(denominator) < 1e-6) continue;
@@ -138,6 +138,45 @@ float intersectFitSphere(float3 posVS, float3 triangleVerticesVS[3], float3 vert
 
     return ToNDCPosition(float3(posVS.x, posVS.y, zVS), projectionMatrix).z; // Convert to NDC Z
 }
+
+float intersectFitSphere2(float3 posVS, float3 verts[3], float3 normals[3], float4x4 proj)
+{
+    float numerator   = 0.0f;
+    float denominator = 0.0f;
+
+    for (int j = 1; j < 3; ++j)
+    {
+        float3 dp = verts[j]   - verts[0];   // p_j - p_0
+        float3 dn = normals[0] - normals[j]; // n_0 - n_j
+
+        numerator   += dot(dp, dn);
+        denominator += dot(dn, dn);
+    }
+
+    if (abs(denominator) < 1e-6f)
+        return ToNDCPosition(posVS, proj).z; // degenerate: flat triangle, fall back
+
+    float r = numerator / denominator;
+
+    // --- Compute center (average over all three vertices for robustness) ---
+    float3 c = float3(0.0f, 0.0f, 0.0f);
+    for (int i = 0; i < 3; ++i)
+        c += verts[i] + r * normals[i];
+    c /= 3.0f;
+
+    // --- Intersect view ray with sphere, output conservative NDC depth ---
+    float3 rayDir = normalize(posVS);
+    float  t      = sphIntersect(float3(0.0f, 0.0f, 0.0f), rayDir, c, abs(r));
+
+    if (t < 0.0f)
+        return ToNDCPosition(posVS, proj).z; // ray missed sphere, fall back
+
+    float3 hitVS = rayDir * t;
+    return ToNDCPosition(hitVS, proj).z;
+}
+
+
+
 
 void evaluateExtentedDepth(
     float depth,

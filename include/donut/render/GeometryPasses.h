@@ -102,6 +102,8 @@ namespace donut::render
         nvrhi::ITexture* depthWrite,
         nvrhi::ITexture* extentRead,
         nvrhi::ITexture* extentWrite,
+        nvrhi::ITexture* offsetsRead,
+        nvrhi::ITexture* offsetsWrite,
         bool useGSAdjacency
         );
 }

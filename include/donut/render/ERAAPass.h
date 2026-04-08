@@ -193,8 +193,13 @@ namespace donut::render
 
         void ResetBindingCache();
 
-        void CreateShadingBindingSet(nvrhi::ITexture* eraaOffsets,
-            nvrhi::ITexture* depthReadTexture, nvrhi::ITexture* depthWriteTexture, nvrhi::ITexture* eraaReadTexture, nvrhi::ITexture* eraaWriteTexture);
+        void CreateShadingBindingSet(
+            nvrhi::ITexture* eraaReadOffsets,
+            nvrhi::ITexture* eraaWriteOffsets,
+            nvrhi::ITexture* depthReadTexture,
+            nvrhi::ITexture* depthWriteTexture,
+            nvrhi::ITexture* eraaReadTexture,
+            nvrhi::ITexture* eraaWriteTexture);
 
 		void Resolve(nvrhi::ICommandList* commandList, const ResolveParams& params);
 
