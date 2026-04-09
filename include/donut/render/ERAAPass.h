@@ -135,7 +135,6 @@ namespace donut::render
             nvrhi::ITexture* eraaOffsetsTexture = nullptr;
         };
 
-
     protected:
         nvrhi::DeviceHandle m_Device;
         nvrhi::InputLayoutHandle m_InputLayout;

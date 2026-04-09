@@ -1,7 +1,7 @@
 
 #include <donut/shaders/eraa_shared_data.hlsli>
 
-#define ALGORITHM_VERSION 1
+#define ALGORITHM_VERSION 0
 
 struct EdgeResult 
 {
@@ -101,7 +101,7 @@ float CoverageFromCenterAxes(float X, float Y)
 bool falseIntersection(float prevZ, float adjZ, float extPrev, bool failedDepthTest, out float eprime)
 {
     eprime   =  CalculateEprime(prevZ, extPrev);
-    return failedDepthTest ? (eprime >= adjZ) : (eprime <= adjZ); // Account for floating point precision issues
+    return (eprime  >= (adjZ )); 
 }
 
 void setEdgeInterceptsAndArea(float Dc, float Di, int index, bool offsetsOutside, out EdgeResult r)

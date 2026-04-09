@@ -9,6 +9,9 @@ void main_ps(
 {
 
     int2 inputPixelPosition = int2(pos.xy);
+    int2 inputTextureSize;
+    t_Src.GetDimensions(inputTextureSize.x, inputTextureSize.y);
+    inputPixelPosition = clamp(inputPixelPosition, int2(0, 0), inputTextureSize - 1);
     float4 data             = u_eraaOffsets[inputPixelPosition];
 
 #if ERAA_SHOW_DETECTED_EDGES

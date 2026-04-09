@@ -54,7 +54,6 @@ float PlaneNDCDepthAtPixel(float3 origin, float3 direction, float3 planePoint, f
     return saturate(ndcZ);
 }
 
-
 float PlaneNdcZ(float3 originVS,
                 float3 dirVS,          // need not be unit
                 float3 planePointVS,
@@ -90,7 +89,6 @@ float PlaneNdcZ(float3 originVS,
 
     return clip.z / clip.w;                 // z_ndc (no saturate)
 }
-
 
 float sphIntersect( in float3 ro, in float3 rd, in float3 ce, float ra )
 {
@@ -176,8 +174,6 @@ float intersectFitSphere2(float3 posVS, float3 verts[3], float3 normals[3], floa
 }
 
 
-
-
 void evaluateExtentedDepth(
     float depth,
     out float  extentedDepthMin      = 0.0f,
@@ -185,23 +181,20 @@ void evaluateExtentedDepth(
 {
     float intersectionDepth = 1.0f;
 
-   // if(intersectionEdge)
-    { 
-        float2 c0 = float2(-0.5,-0.5);
-        float2 c1 = float2( 0.5,-0.5);
-        float2 c2 = float2( 0.5, 0.5);
-        float2 c3 = float2(-0.5, 0.5);
+    float2 c0 = float2(-0.5,-0.5);
+    float2 c1 = float2( 0.5,-0.5);
+    float2 c2 = float2( 0.5, 0.5);
+    float2 c3 = float2(-0.5, 0.5);
 
-            float zc = depth; // center depth
-            float gx = ddx_fine(zc);
-            float gy = ddy_fine(zc);
-            float z0 = zc + gx*c0.x + gy*c0.y;
-            float z1 = zc + gx*c1.x + gy*c1.y;
-            float z2 = zc + gx*c2.x + gy*c2.y;
-            float z3 = zc + gx*c3.x + gy*c3.y;
-            extentedDepthMax         = min(min(z0,z1), min(z2,z3));
-            extentedDepthMin         = max(max(z0,z1), max(z2,z3));
-    }
+    float zc = depth; // center depth
+    float gx = ddx_fine(zc);
+    float gy = ddy_fine(zc);
+    float z0 = zc + gx*c0.x + gy*c0.y;
+    float z1 = zc + gx*c1.x + gy*c1.y;
+    float z2 = zc + gx*c2.x + gy*c2.y;
+    float z3 = zc + gx*c3.x + gy*c3.y;
+    extentedDepthMax         = min(min(z0,z1), min(z2,z3));
+    extentedDepthMin         = max(max(z0,z1), max(z2,z3));
 }
 
 
