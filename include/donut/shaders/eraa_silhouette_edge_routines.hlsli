@@ -4,15 +4,15 @@ bool detectSilhouetteEdgeNDC_GSADJ(float3 surfaceNormalNDC, float3 adjacentFaceN
     return surfaceNormalNDC.z * adjacentFaceNormalNDC.z <= 0.0f;
 }
 
-bool detectSilhouetteEdgeVS_GSADJ(float3 surfaceNormalVS, float3 adjacentFaceNormalVS, float3 viewVector, out float weight)
+bool detectSilhouetteEdgeVS_GSADJ(float3 surfaceNormalVS, float3 adjacentFaceNormalVS, float3 viewVector)
 {
     float d0 = dot(surfaceNormalVS, viewVector);
     float d1 = dot(adjacentFaceNormalVS, viewVector);
    
-    bool silhouette = (d0 * d1 < 0.01f); // allow some tolerance for near-grazing angles
+    bool silhouette = (d0 * d1 <= 0.0f); // allow some tolerance for near-grazing angles
     bool grazing = (min(abs(d0), abs(d1)) < 0.1f);
     
-    return (silhouette);
+    return (silhouette || grazing);
 }  
  
 bool detectSilhouetteEdgeNDC(int vtxID,float3 perVertexNormalsNDC[3], float3 surfaceNormalNDC, out float3 computedNormal, out bool backFace) 

@@ -15,6 +15,7 @@ struct EdgeResult
 
 void buildDepthDeltas(
     float3 pixelPosScreen, 
+    float  extentCurrent,
     out float currDepths[9], 
     out float prevDepths[9], 
     out float depthDiffs[9], 
@@ -28,6 +29,10 @@ void buildDepthDeltas(
     float3 ddx_pos = ddx_fine(pixelPosScreen);
     float3 ddy_pos = ddy_fine(pixelPosScreen);
     
+    
+    currDepths[4]   = pixelPosScreen.z;
+    currExtents[4]  = extentCurrent;
+
     [unroll]
     for(int i = 0; i < 9; ++i)
     {
@@ -36,7 +41,7 @@ void buildDepthDeltas(
         
         if(i == 4)
         {
-            currDepths[i]   = pixelPosScreen.z;
+            continue;
         }
         else
         {

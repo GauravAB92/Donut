@@ -21,7 +21,7 @@
 */
 
 #define USE_GS_ADJACENCY_DATA 1
-#define DEBUG_OFFSETS 0
+#define DEBUG_OFFSETS 1
 #define DETECT_IMPLICIT_EDGES 0
 
 #pragma pack_matrix(row_major)
@@ -51,7 +51,6 @@ out float4 outputColor
     float4 edgeCoords[3] = {float4(0,0,0,0), float4(0,0,0,0), float4(0,0,0,0)};
     float3 xiyiA = float3(0,0,0);
     float3 viewVector =  -normalize(input.posVS.xyz);  
-    float  weight = 1.0f;
     bool backFace;
 
 	for(int edgeIdx = 0; edgeIdx < 3; ++edgeIdx)
@@ -71,7 +70,7 @@ out float4 outputColor
                     outputColor     = max(outputColor,  LRUDOffsets);
                     edgeType        = EdgeType::Edge_Discontinuity;
                 }
-                else if(detectSilhouetteEdgeVS_GSADJ(normalize(input.surfaceNormalVS), normalize(input.adjSurfaceNormalsVS[edgeIdx]), viewVector, weight))
+                else if(detectSilhouetteEdgeVS_GSADJ(normalize(input.surfaceNormalVS), normalize(input.adjSurfaceNormalsVS[edgeIdx]), viewVector))
                 {  
                     outputColor     = max(outputColor, LRUDOffsets);
                     edgeType        = EdgeType::Edge_Silhouette;
@@ -142,12 +141,12 @@ void main_ps(
     bool   depthTestPassed              = true;
     int2   pixelCoord                   = int2(posScreen.xy);
     float  depthCurr                    = posScreen.z;
-    float  extentCurr                   = posScreen.z;
+    float  extentCurr                   = 0.0f;
     float  extentMax                    = posScreen.z;
 
     float4 LRUDOffsetsFB                = u_eraaReadOffsets[pixelCoord];
-    float  depthPrev                    = u_eraaDepthRead[pixelCoord]  * 0.95f;
-    float  extentPrev                   = u_eraaExtentRead[pixelCoord] ;
+    float  depthPrev                    = u_eraaDepthRead[pixelCoord] * 0.95f;
+    float  extentPrev                   = u_eraaExtentRead[pixelCoord];
 
     float currDepths        [9]         = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0, 0.0, 0.0, 0.0 };
     float prevDepths        [9]         = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0, 0.0, 0.0, 0.0 };
@@ -159,12 +158,10 @@ void main_ps(
     EdgeType edgeType = EdgeType::Edge_None;
     float4 outputColor = float4(0, 0, 0, 0);
 
-    //evaluateExtentedDepth(depthCurr, extentCurr, extentMax);
-     extentCurr = intersectFitSphere2(Input.posVS, Input.posViewSpace, Input.normalVS, g_ForwardView.view.matViewToClipNoOffset);
+    evaluateExtentedDepth(depthCurr, extentCurr, extentMax);
+   // extentCurr = intersectFitSphere2(Input.posVS, Input.posViewSpace, Input.normalVS, g_ForwardView.view.matViewToClipNoOffset);
     //extentCurr = depthCurr;
-    currExtents[4] = extentCurr; //center pixel extent
-    buildDepthDeltas(posScreen.xyz, currDepths, prevDepths, depthDiffs, currExtents, extentFramebuffer);
-
+    buildDepthDeltas(posScreen.xyz, extentCurr, currDepths, prevDepths, depthDiffs, currExtents, extentFramebuffer);
     detectExplicitEdges(posScreen, Input, isConservativelyGenerated, barycentrics, edgeType, outputColor);
     inclusionTest(Input.posScreenSpace, posScreen.xy, pixelInTriangle);
  
@@ -203,97 +200,107 @@ void main_ps(
     }
 #endif
 
-    float threshold = 0.1f;
-    bool coplanar = false;
-    if( ((abs(extentCurr - depthCurr)) == 0.0f))
-    {
-      //  extentCurr = depthCurr + 0.1f;
-      coplanar = true;
-    }
-    
-    //If edge is not intersection edge and depth test failed then discard pixel to avoid writing incorrect depth and extent values to framebuffer
-    float4 currentOutputColor               = max(outputColor, LRUDOffsetsFB);
-    bool   occluding                        = (extentCurr - 1e-2f > extentPrev); //center pixel depth vs extent from previous frame 
-    
-        if(occluding && (edgeType != EdgeType::Edge_None) )
+        //If edge is not intersection edge and depth test failed then discard pixel to avoid writing incorrect depth and extent values to framebuffer
+        float4 prevOffsets               = LRUDOffsetsFB;
+        bool   occluding                 = ( (extentCurr - 6e-4f) > extentPrev);  
+        
+        if(occluding && edgeType != EdgeType::Edge_None)
         {
-            if(currentOutputColor.r != 0.0f)        //Left offset added
+            if(currExtents[3] > extentFramebuffer[3] ) //checking occlusion for left offset
             {
-                //remove previous right offset from left neighbor
-                int2 neighborPixelCoord                     = pixelCoord + pixelIdOffsets[3]; //left neighbor
-
-                u_eraaWriteOffsets[neighborPixelCoord].g    = 0.0f;
-                if(pixelInTriangle[4])
+                if( (currExtents[1] > extentFramebuffer[1]) && (currExtents[7] > extentFramebuffer[7])  ) 
                 {
-                    u_eraaExtentWrite[pixelCoord]           = extentCurr;
-                }
-                else
-                {
-                    u_eraaExtentWrite[neighborPixelCoord]   = extentCurr;
-
-                }
+                    prevOffsets.r = 0.0f;                                                                               // remove left offset if occluded by current pixel
+                    int2 neighborPixelCoord                         = pixelCoord + pixelIdOffsets[3];                   //left neighbor
+                    float4 neighbourhoodOffsets                     = u_eraaReadOffsets[neighborPixelCoord];
+                    neighbourhoodOffsets.g                          = 0.0f;                                             // remove right offset from left neighbor
+                    u_eraaWriteOffsets[neighborPixelCoord]          = neighbourhoodOffsets;
+                }                
             }
 
-            if(currentOutputColor.g != 0.0f)        //Right offset added
+            if(currExtents[5] > extentFramebuffer[5] ) //checking occlusion for right offset
             {
-                //remove previous left offset from right neighbor
-                int2 neighborPixelCoord                     = pixelCoord + pixelIdOffsets[5]; //right neighbor
-                u_eraaWriteOffsets[neighborPixelCoord].r    = 0.0f;
-                if(pixelInTriangle[4])
+                if( (currExtents[1] > extentFramebuffer[1]) && (currExtents[7] > extentFramebuffer[7])  ) 
                 {
-                    u_eraaExtentWrite[pixelCoord] = extentCurr;
-                }
-                else
-                {
-                    u_eraaExtentWrite[neighborPixelCoord] = extentCurr;
-                }
+                    prevOffsets.g = 0.0f; // remove left offset if occluded by current pixel
+                    //remove left neighbor's right offset as well
+                    int2 neighborPixelCoord                         = pixelCoord + pixelIdOffsets[5]; //right neighbor
+                    float4 neighbourhoodOffsets                     = u_eraaReadOffsets[neighborPixelCoord];
+                    neighbourhoodOffsets.r                          = 0.0f; // remove left offset from right neighbor
+                    u_eraaWriteOffsets[neighborPixelCoord]          = neighbourhoodOffsets;
+                }                
             }
 
-            if(currentOutputColor.b != 0.0f)        //Up offset added
+            if(currExtents[1] > extentFramebuffer[1] ) //checking occlusion for up offset
             {
-                //remove previous down offset from up neighbor
-                int2 neighborPixelCoord                     = pixelCoord + pixelIdOffsets[1]; //up neighbor
-                u_eraaWriteOffsets[neighborPixelCoord].a    = 0.0f;
-                if(pixelInTriangle[4])
+                if( (currExtents[3] > extentFramebuffer[3]) && (currExtents[5] > extentFramebuffer[5])  ) //checking occlusion for left offset
                 {
-                    u_eraaExtentWrite[pixelCoord] = extentCurr;
-                }
-                else
-                {
-                    u_eraaExtentWrite[neighborPixelCoord] = extentCurr;
-                }
-            }
-            
-            if(currentOutputColor.a != 0.0f)        //Down offset added
-            {
-                //remove previous up offset from down neighbor
-                int2 neighborPixelCoord                     = pixelCoord + pixelIdOffsets[7]; //down neighbor
-                u_eraaWriteOffsets[neighborPixelCoord].b    = 0.0f;
-                if(pixelInTriangle[4])
-                {
-                    u_eraaExtentWrite[pixelCoord] = extentCurr;
-                }
-                else
-                {
-                    u_eraaExtentWrite[neighborPixelCoord] = extentCurr;
-                }
+                    prevOffsets.b = 0.0f; // remove up offset if occluded by current pixel
+                    //remove up neighbor's down offset as well
+                    int2 neighborPixelCoord                         = pixelCoord + pixelIdOffsets[1]; //up neighbor
+                    float4 neighbourhoodOffsets                     = u_eraaReadOffsets[neighborPixelCoord];
+                    neighbourhoodOffsets.a                          = 0.0f; // remove down offset from up neighbor
+                    u_eraaWriteOffsets[neighborPixelCoord]          = neighbourhoodOffsets;
+                }                
             }
 
+            if(currExtents[7] > extentFramebuffer[7] ) //checking occlusion for down offset
+            {
+                if( (currExtents[3] > extentFramebuffer[3]) && (currExtents[5] > extentFramebuffer[5])  ) 
+                {
+                    prevOffsets.a = 0.0f; // remove down offset if occluded by current pixel
+                    //remove down neighbor's up offset as well
+                    int2 neighborPixelCoord                         = pixelCoord + pixelIdOffsets[7]; //down neighbor
+                    float4 neighbourhoodOffsets                     = u_eraaReadOffsets[neighborPixelCoord];
+                    neighbourhoodOffsets.b                          = 0.0f; // remove up offset from down neighbor
+                    u_eraaWriteOffsets[neighborPixelCoord]          = neighbourhoodOffsets;
+                }                
+            }
         }
-        else if(occluding && (edgeType == EdgeType::Edge_None) && pixelInTriangle[4])
+        else if(occluding)
         {
-            currentOutputColor = float4(0.0f, 0.0f, 0.0f, 0.0f); //not occluding so no offsets
-            u_eraaExtentWrite[pixelCoord] = extentCurr;
+            prevOffsets = float4(0.0f, 0.0f, 0.0f, 0.0f); // remove all offsets if occluded by current pixel and no edge detected to avoid writing incorrect offsets to framebuffer
         }
 
     // Set depth and extent outputs
     // If intersection edge found then don't update depth and extent
     if(depthTestPassed && (!isConservativelyGenerated))
     {
-        u_eraaDepthWrite[pixelCoord]                    =  depthCurr;
+        u_eraaDepthWrite[pixelCoord]                     =  depthCurr;
+        u_eraaExtentWrite[pixelCoord]                    =  extentCurr;
+    }
+    else if(depthTestPassed)
+    {
+        if(outputColor.r > 0.0f)
+        {
+            //add extent to left neighbor
+            int2 neighborPixelCoord                        = pixelCoord + pixelIdOffsets[3]; //left
+            u_eraaExtentWrite[neighborPixelCoord]          =  extentCurr;
+        }
+
+        if(outputColor.g > 0.0f)
+        {
+            //add extent to right neighbor
+            int2 neighborPixelCoord                        = pixelCoord + pixelIdOffsets[5]; //right
+            u_eraaExtentWrite[neighborPixelCoord]          =  extentCurr;
+        }
+
+        if(outputColor.b > 0.0f)
+        {
+            //add extent to up neighbor
+            int2 neighborPixelCoord                        = pixelCoord + pixelIdOffsets[1]; //up
+            u_eraaExtentWrite[neighborPixelCoord]          =  extentCurr;
+        }
+
+        if(outputColor.a > 0.0f)
+        {
+            //add extent to down neighbor
+            int2 neighborPixelCoord                        = pixelCoord + pixelIdOffsets[7]; //down
+            u_eraaExtentWrite[neighborPixelCoord]          =  extentCurr;
+        }
+
     }
 
-    
-    u_eraaWriteOffsets[pixelCoord]                      =  currentOutputColor;
+    u_eraaWriteOffsets[pixelCoord]                      =  max(prevOffsets, outputColor);
    // o_color = outputColor;
 }

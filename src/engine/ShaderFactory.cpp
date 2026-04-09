@@ -268,7 +268,7 @@ std::pair<const void*, size_t> donut::engine::ShaderFactory::FindShaderFromHash(
             for (auto permutation : permutations)
             {
                 permutationConstants.clear();
-                permutationDefines.clear();
+                permutationDefines.clear(); 
                 // split the string by spaces to get individual defines
                 std::vector<std::string> permutationStrings = donut::string_utils::split(permutation, " ");
                 for (auto& s : permutationStrings)
