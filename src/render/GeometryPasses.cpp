@@ -285,7 +285,6 @@ void donut::render::RenderViewPerTriangle(
             args.startIndexLocation = baseIndex + tri;
             args.startVertexLocation = baseVertex;
             args.startInstanceLocation = item->instance->GetInstanceIndex();
-
             pass.SetPushConstants(passContext, commandList, state, args);
             commandList->drawIndexed(args);
 

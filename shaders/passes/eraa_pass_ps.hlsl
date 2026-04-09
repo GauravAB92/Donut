@@ -146,7 +146,7 @@ void main_ps(
 
     float4 LRUDOffsetsFB                = u_eraaReadOffsets[pixelCoord];
     float  depthPrev                    = u_eraaDepthRead[pixelCoord] * 0.95f;
-    float  extentPrev                   = u_eraaExtentRead[pixelCoord];
+    float  extentPrev                   = u_eraaExtentRead[pixelCoord] * 1.1f;
 
     float currDepths        [9]         = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0, 0.0, 0.0, 0.0 };
     float prevDepths        [9]         = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0, 0.0, 0.0, 0.0 };
@@ -202,7 +202,7 @@ void main_ps(
 
         //If edge is not intersection edge and depth test failed then discard pixel to avoid writing incorrect depth and extent values to framebuffer
         float4 prevOffsets               = LRUDOffsetsFB;
-        bool   occluding                 = ( (extentCurr - 6e-4f) > extentPrev);  
+        bool   occluding                 = (extentCurr  > extentPrev);  
         
         if(occluding && edgeType != EdgeType::Edge_None)
         {
@@ -269,7 +269,7 @@ void main_ps(
         u_eraaDepthWrite[pixelCoord]                     =  depthCurr;
         u_eraaExtentWrite[pixelCoord]                    =  extentCurr;
     }
-    else if(depthTestPassed)
+    else if(depthTestPassed && occluding)
     {
         if(outputColor.r > 0.0f)
         {
