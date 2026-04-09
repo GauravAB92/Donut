@@ -21,7 +21,7 @@
 */
 
 #define USE_GS_ADJACENCY_DATA 1
-#define DEBUG_OFFSETS 1
+#define DEBUG_OFFSETS 0
 #define DETECT_IMPLICIT_EDGES 0
 
 #pragma pack_matrix(row_major)
@@ -36,6 +36,7 @@
 #include <donut/shaders/eraa_intersection_edge_routines.hlsli>
 
 DECLARE_CBUFFER(ForwardShadingViewConstants, g_ForwardView, FORWARD_BINDING_VIEW_CONSTANTS, FORWARD_SPACE_VIEW);
+
 
 void detectExplicitEdges(
 in float4 posScreen,
@@ -145,8 +146,8 @@ void main_ps(
     float  extentMax                    = posScreen.z;
 
     float4 LRUDOffsetsFB                = u_eraaReadOffsets[pixelCoord];
-    float  depthPrev                    = u_eraaDepthRead[pixelCoord] * 0.95f;
-    float  extentPrev                   = u_eraaExtentRead[pixelCoord] * 1.1f;
+    float  depthPrev                    = u_eraaDepthRead[pixelCoord]   * 0.95f;
+    float  extentPrev                   = u_eraaExtentRead[pixelCoord]  * 1.1f;
 
     float currDepths        [9]         = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0, 0.0, 0.0, 0.0 };
     float prevDepths        [9]         = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0, 0.0, 0.0, 0.0 };
@@ -202,19 +203,19 @@ void main_ps(
 
         //If edge is not intersection edge and depth test failed then discard pixel to avoid writing incorrect depth and extent values to framebuffer
         float4 prevOffsets               = LRUDOffsetsFB;
-        bool   occluding                 = (extentCurr  > extentPrev);  
+        bool   occluding                 = ( (extentCurr)  > extentPrev);  
         
         if(occluding && edgeType != EdgeType::Edge_None)
         {
             if(currExtents[3] > extentFramebuffer[3] ) //checking occlusion for left offset
             {
-                if( (currExtents[1] > extentFramebuffer[1]) && (currExtents[7] > extentFramebuffer[7])  ) 
+                if( (currExtents[1] > extentFramebuffer[1]) && (currExtents[7] > extentFramebuffer[7])   ) 
                 {
                     prevOffsets.r = 0.0f;                                                                               // remove left offset if occluded by current pixel
-                    int2 neighborPixelCoord                         = pixelCoord + pixelIdOffsets[3];                   //left neighbor
-                    float4 neighbourhoodOffsets                     = u_eraaReadOffsets[neighborPixelCoord];
-                    neighbourhoodOffsets.g                          = 0.0f;                                             // remove right offset from left neighbor
-                    u_eraaWriteOffsets[neighborPixelCoord]          = neighbourhoodOffsets;
+                    // int2 neighborPixelCoord                         = pixelCoord + pixelIdOffsets[3];                   //left neighbor
+                    // float4 neighbourhoodOffsets                     = u_eraaReadOffsets[neighborPixelCoord];
+                    // neighbourhoodOffsets.g                          = 0.0f;                                             // remove right offset from left neighbor
+                    // //u_eraaWriteOffsets[neighborPixelCoord]          = neighbourhoodOffsets;
                 }                
             }
 
@@ -224,10 +225,10 @@ void main_ps(
                 {
                     prevOffsets.g = 0.0f; // remove left offset if occluded by current pixel
                     //remove left neighbor's right offset as well
-                    int2 neighborPixelCoord                         = pixelCoord + pixelIdOffsets[5]; //right neighbor
-                    float4 neighbourhoodOffsets                     = u_eraaReadOffsets[neighborPixelCoord];
-                    neighbourhoodOffsets.r                          = 0.0f; // remove left offset from right neighbor
-                    u_eraaWriteOffsets[neighborPixelCoord]          = neighbourhoodOffsets;
+                    // int2 neighborPixelCoord                         = pixelCoord + pixelIdOffsets[5]; //right neighbor
+                    // float4 neighbourhoodOffsets                     = u_eraaReadOffsets[neighborPixelCoord];
+                    // neighbourhoodOffsets.r                          = 0.0f; // remove left offset from right neighbor
+                    // //u_eraaWriteOffsets[neighborPixelCoord]          = neighbourhoodOffsets;
                 }                
             }
 
@@ -237,10 +238,10 @@ void main_ps(
                 {
                     prevOffsets.b = 0.0f; // remove up offset if occluded by current pixel
                     //remove up neighbor's down offset as well
-                    int2 neighborPixelCoord                         = pixelCoord + pixelIdOffsets[1]; //up neighbor
-                    float4 neighbourhoodOffsets                     = u_eraaReadOffsets[neighborPixelCoord];
-                    neighbourhoodOffsets.a                          = 0.0f; // remove down offset from up neighbor
-                    u_eraaWriteOffsets[neighborPixelCoord]          = neighbourhoodOffsets;
+                    // int2 neighborPixelCoord                         = pixelCoord + pixelIdOffsets[1]; //up neighbor
+                    // float4 neighbourhoodOffsets                     = u_eraaReadOffsets[neighborPixelCoord];
+                    // neighbourhoodOffsets.a                          = 0.0f; // remove down offset from up neighbor
+                    // //u_eraaWriteOffsets[neighborPixelCoord]          = neighbourhoodOffsets;
                 }                
             }
 
@@ -250,10 +251,10 @@ void main_ps(
                 {
                     prevOffsets.a = 0.0f; // remove down offset if occluded by current pixel
                     //remove down neighbor's up offset as well
-                    int2 neighborPixelCoord                         = pixelCoord + pixelIdOffsets[7]; //down neighbor
-                    float4 neighbourhoodOffsets                     = u_eraaReadOffsets[neighborPixelCoord];
-                    neighbourhoodOffsets.b                          = 0.0f; // remove up offset from down neighbor
-                    u_eraaWriteOffsets[neighborPixelCoord]          = neighbourhoodOffsets;
+                    // int2 neighborPixelCoord                         = pixelCoord + pixelIdOffsets[7]; //down neighbor
+                    // float4 neighbourhoodOffsets                     = u_eraaReadOffsets[neighborPixelCoord];
+                    // neighbourhoodOffsets.b                          = 0.0f; // remove up offset from down neighbor
+                    // //u_eraaWriteOffsets[neighborPixelCoord]          = neighbourhoodOffsets;
                 }                
             }
         }
@@ -269,37 +270,36 @@ void main_ps(
         u_eraaDepthWrite[pixelCoord]                     =  depthCurr;
         u_eraaExtentWrite[pixelCoord]                    =  extentCurr;
     }
-    else if(depthTestPassed && occluding)
-    {
-        if(outputColor.r > 0.0f)
-        {
-            //add extent to left neighbor
-            int2 neighborPixelCoord                        = pixelCoord + pixelIdOffsets[3]; //left
-            u_eraaExtentWrite[neighborPixelCoord]          =  extentCurr;
-        }
+    // else if(depthTestPassed && occluding)
+    // {
+    //     if(outputColor.r > 0.0f)
+    //     {
+    //         //add extent to left neighbor
+    //         int2 neighborPixelCoord                        = pixelCoord + pixelIdOffsets[3]; //left
+    //         u_eraaExtentWrite[neighborPixelCoord]          =  extentCurr;
+    //     }
 
-        if(outputColor.g > 0.0f)
-        {
-            //add extent to right neighbor
-            int2 neighborPixelCoord                        = pixelCoord + pixelIdOffsets[5]; //right
-            u_eraaExtentWrite[neighborPixelCoord]          =  extentCurr;
-        }
+    //     if(outputColor.g > 0.0f)
+    //     {
+    //         //add extent to right neighbor
+    //         int2 neighborPixelCoord                        = pixelCoord + pixelIdOffsets[5]; //right
+    //         u_eraaExtentWrite[neighborPixelCoord]          =  extentCurr;
+    //     }
 
-        if(outputColor.b > 0.0f)
-        {
-            //add extent to up neighbor
-            int2 neighborPixelCoord                        = pixelCoord + pixelIdOffsets[1]; //up
-            u_eraaExtentWrite[neighborPixelCoord]          =  extentCurr;
-        }
+    //     if(outputColor.b > 0.0f)
+    //     {
+    //         //add extent to up neighbor
+    //         int2 neighborPixelCoord                        = pixelCoord + pixelIdOffsets[1]; //up
+    //         u_eraaExtentWrite[neighborPixelCoord]          =  extentCurr;
+    //     }
 
-        if(outputColor.a > 0.0f)
-        {
-            //add extent to down neighbor
-            int2 neighborPixelCoord                        = pixelCoord + pixelIdOffsets[7]; //down
-            u_eraaExtentWrite[neighborPixelCoord]          =  extentCurr;
-        }
-
-    }
+    //     if(outputColor.a > 0.0f)
+    //     {
+    //         //add extent to down neighbor
+    //         int2 neighborPixelCoord                        = pixelCoord + pixelIdOffsets[7]; //down
+    //         u_eraaExtentWrite[neighborPixelCoord]          =  extentCurr;
+    //     }
+    // }
 
     u_eraaWriteOffsets[pixelCoord]                      =  max(prevOffsets, outputColor);
    // o_color = outputColor;

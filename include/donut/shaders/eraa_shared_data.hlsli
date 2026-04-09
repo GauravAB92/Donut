@@ -15,10 +15,15 @@ enum class EdgeType : uint
 RWTexture2D<float4> u_eraaReadOffsets                       : register(u1);
 RWTexture2D<float>  u_eraaDepthRead                         : register(u2);
 RWTexture2D<float>  u_eraaDepthWrite                        : register(u3);
-RWTexture2D<float>  u_eraaExtentRead                        : register(u4); 
+RWTexture2D<float>  u_eraaExtentRead                        : register(u4);
+
 RasterizerOrderedTexture2D<float>  u_eraaExtentWrite        : register(u5); 
 RasterizerOrderedTexture2D<float4> u_eraaWriteOffsets       : register(u6); 
 
+RWTexture2D<uint>  u_eraaExtentL                        : register(u7); 
+RWTexture2D<uint>  u_eraaExtentR                        : register(u8); 
+RWTexture2D<uint>  u_eraaExtentU                        : register(u9); 
+RWTexture2D<uint>  u_eraaExtentD                        : register(u10); 
 
 
 static const float colorScale = 2.5f;
