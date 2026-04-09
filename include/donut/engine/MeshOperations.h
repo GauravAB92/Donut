@@ -15,7 +15,6 @@ namespace donut::engine
 	void ProcessEdge(
 		std::shared_ptr<BufferGroup>& buffers,
 		std::unordered_map<EdgeKey, EdgeInfo, EdgeKeyHash>& edgeMap,
-		const std::unordered_map<PositionKey, uint32_t, PositionKeyHash>& posMap,
 		uint32_t fromVert, uint32_t toVert, uint32_t halfEdgeIdx);
 }
 

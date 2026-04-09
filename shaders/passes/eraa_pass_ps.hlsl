@@ -35,7 +35,6 @@
 #include <donut/shaders/eraa_extent_data_routines.hlsli>
 #include <donut/shaders/eraa_intersection_edge_routines.hlsli>
 
-
 DECLARE_CBUFFER(ForwardShadingViewConstants, g_ForwardView, FORWARD_BINDING_VIEW_CONSTANTS, FORWARD_SPACE_VIEW);
 
 void detectExplicitEdges(
@@ -147,8 +146,8 @@ void main_ps(
     float  extentMax                    = posScreen.z;
 
     float4 LRUDOffsetsFB                = u_eraaReadOffsets[pixelCoord];
-    float  depthPrev                    = u_eraaDepthRead[pixelCoord];
-    float  extentPrev                   = u_eraaExtentRead[pixelCoord];
+    float  depthPrev                    = u_eraaDepthRead[pixelCoord]  * 0.95f;
+    float  extentPrev                   = u_eraaExtentRead[pixelCoord] ;
 
     float currDepths        [9]         = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0, 0.0, 0.0, 0.0 };
     float prevDepths        [9]         = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0, 0.0, 0.0, 0.0 };
@@ -160,8 +159,9 @@ void main_ps(
     EdgeType edgeType = EdgeType::Edge_None;
     float4 outputColor = float4(0, 0, 0, 0);
 
-    evaluateExtentedDepth(depthCurr, extentCurr, extentMax);
-    //extentCurr = intersectFitSphere2(Input.posVS, Input.posViewSpace, Input.normalVS, g_ForwardView.view.matViewToClipNoOffset);
+    //evaluateExtentedDepth(depthCurr, extentCurr, extentMax);
+     extentCurr = intersectFitSphere2(Input.posVS, Input.posViewSpace, Input.normalVS, g_ForwardView.view.matViewToClipNoOffset);
+    //extentCurr = depthCurr;
     currExtents[4] = extentCurr; //center pixel extent
     buildDepthDeltas(posScreen.xyz, currDepths, prevDepths, depthDiffs, currExtents, extentFramebuffer);
 
@@ -205,14 +205,15 @@ void main_ps(
 
     float threshold = 0.1f;
     bool coplanar = false;
-    if( ((abs(extentCurr - depthCurr)) < threshold))
+    if( ((abs(extentCurr - depthCurr)) == 0.0f))
     {
       //  extentCurr = depthCurr + 0.1f;
+      coplanar = true;
     }
-   
+    
     //If edge is not intersection edge and depth test failed then discard pixel to avoid writing incorrect depth and extent values to framebuffer
     float4 currentOutputColor               = max(outputColor, LRUDOffsetsFB);
-    bool   occluding                        =  ( (extentCurr - 1e-4f) > extentPrev)  ; //center pixel depth vs extent from previous frame 
+    bool   occluding                        = (extentCurr - 1e-2f > extentPrev); //center pixel depth vs extent from previous frame 
     
         if(occluding && (edgeType != EdgeType::Edge_None) )
         {
@@ -220,6 +221,7 @@ void main_ps(
             {
                 //remove previous right offset from left neighbor
                 int2 neighborPixelCoord                     = pixelCoord + pixelIdOffsets[3]; //left neighbor
+
                 u_eraaWriteOffsets[neighborPixelCoord].g    = 0.0f;
                 if(pixelInTriangle[4])
                 {
@@ -228,6 +230,7 @@ void main_ps(
                 else
                 {
                     u_eraaExtentWrite[neighborPixelCoord]   = extentCurr;
+
                 }
             }
 
@@ -275,10 +278,12 @@ void main_ps(
                     u_eraaExtentWrite[neighborPixelCoord] = extentCurr;
                 }
             }
+
         }
         else if(occluding && (edgeType == EdgeType::Edge_None) && pixelInTriangle[4])
         {
             currentOutputColor = float4(0.0f, 0.0f, 0.0f, 0.0f); //not occluding so no offsets
+            u_eraaExtentWrite[pixelCoord] = extentCurr;
         }
 
     // Set depth and extent outputs

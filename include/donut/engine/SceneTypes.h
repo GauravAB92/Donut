@@ -66,12 +66,8 @@ namespace donut::engine
     {
         uint32_t v0, v1;
 
-        EdgeKey(uint32_t from, uint32_t to,
-            const std::vector<dm::float3>& positions,
-            const std::unordered_map<PositionKey, uint32_t, PositionKeyHash>& posMap)
+        EdgeKey(uint32_t p0, uint32_t p1)
         {
-            uint32_t p0 = posMap.at(PositionKey(positions[from]));
-            uint32_t p1 = posMap.at(PositionKey(positions[to]));
             v0 = std::min(p0, p1);
             v1 = std::max(p0, p1);
         }
@@ -115,7 +111,6 @@ namespace donut::engine
         // Object name from glTF, if specified.
         // Otherwise, generated as "AssetName.gltf[index]"
         std::string name;
-
         std::string mimeType;
     };
 

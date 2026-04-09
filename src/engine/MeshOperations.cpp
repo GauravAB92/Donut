@@ -12,16 +12,6 @@ bool donut::engine::GenerateHalfEdgeData(std::shared_ptr<BufferGroup>& buffers)
 	buffers->facesData.clear();
 	buffers->facesData.reserve(triCount);
 
-	std::unordered_map<PositionKey, uint32_t, PositionKeyHash> positionMap;
-
-	for (uint32_t i = 0; i < buffers->positionData.size(); i++)
-	{
-		PositionKey key(buffers->positionData[i]);
-		if (positionMap.find(key) == positionMap.end())
-		{
-			positionMap[key] = i;
-		}
-	}
 
 	// Map Edge to HalfEdgeInfo
 	std::unordered_map<EdgeKey, EdgeInfo, EdgeKeyHash> edgeMap;
@@ -70,9 +60,9 @@ bool donut::engine::GenerateHalfEdgeData(std::shared_ptr<BufferGroup>& buffers)
 		buffers->halfEdgesData.push_back(he2);
 
 		//Register edges and find twins
-		ProcessEdge(buffers, edgeMap, positionMap, v0, v1, face.halfEdges[0]);
-		ProcessEdge(buffers, edgeMap, positionMap, v1, v2, face.halfEdges[1]);
-		ProcessEdge(buffers, edgeMap, positionMap, v2, v0, face.halfEdges[2]);
+		ProcessEdge(buffers, edgeMap, v0, v1, face.halfEdges[0]);
+		ProcessEdge(buffers, edgeMap, v1, v2, face.halfEdges[1]);
+		ProcessEdge(buffers, edgeMap, v2, v0, face.halfEdges[2]);
 	}
 
 	return true;
@@ -122,10 +112,9 @@ bool donut::engine::GenerateAdjacencyIndices(std::shared_ptr<BufferGroup>& buffe
 void donut::engine::ProcessEdge(
 	std::shared_ptr<BufferGroup>& buffers,
 	std::unordered_map<EdgeKey, EdgeInfo, EdgeKeyHash>& edgeMap,
-	const std::unordered_map<PositionKey, uint32_t, PositionKeyHash>& posMap,
 	uint32_t fromVert, uint32_t toVert, uint32_t halfEdgeIdx)
 {
-	EdgeKey key(fromVert, toVert, buffers->positionData, posMap);
+	EdgeKey key(fromVert, toVert);
 	auto it = edgeMap.find(key);
 
 	if (it == edgeMap.end())

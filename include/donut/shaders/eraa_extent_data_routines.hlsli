@@ -154,7 +154,7 @@ float intersectFitSphere2(float3 posVS, float3 verts[3], float3 normals[3], floa
     if (abs(denominator) < 1e-6f)
         return ToNDCPosition(posVS, proj).z; // degenerate: flat triangle, fall back
 
-    float r = numerator / denominator;
+    float r = (numerator / denominator);
 
     // --- Compute center (average over all three vertices for robustness) ---
     float3 c = float3(0.0f, 0.0f, 0.0f);

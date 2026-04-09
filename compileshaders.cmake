@@ -117,7 +117,7 @@ function(donut_compile_shaders)
     endif()
 	
 	if (NOT params_SHADER_MODEL)
-		set(params_SHADER_MODEL "6_5")
+		set(params_SHADER_MODEL "6_6")
 	endif()
 
     if ("${params_OUTPUT_FORMAT}" STREQUAL "HEADER")
